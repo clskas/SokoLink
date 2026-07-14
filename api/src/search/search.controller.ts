@@ -1,6 +1,22 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+function mapCategory(category: { id: string; slug: string; nameFr: string } | null) {
+  if (!category) return null;
+  return { ...category, name: category.nameFr };
+}
+
+function mapProduct<T extends {
+  indicativePrice: unknown;
+  category?: { id: string; slug: string; nameFr: string } | null;
+}>(product: T) {
+  return {
+    ...product,
+    price: product.indicativePrice,
+    category: mapCategory(product.category ?? null),
+  };
+}
 
 @Controller()
 export class SearchController {
@@ -28,19 +44,30 @@ export class SearchController {
       company: { isSuspended: false },
       ...(type ? { type } : {}),
       ...(categoryId ? { categoryId } : {}),
-      ...(province ? { OR: [{ originProvince: province }, { company: { province } }] } : {}),
+      ...(province
+        ? {
+            OR: [
+              { originProvince: province },
+              { company: { province } },
+            ],
+          }
+        : {}),
       ...(q
         ? {
             OR: [
               { name: { contains: q, mode: 'insensitive' as const } },
               { description: { contains: q, mode: 'insensitive' as const } },
-              { company: { name: { contains: q, mode: 'insensitive' as const } } },
+              {
+                company: {
+                  name: { contains: q, mode: 'insensitive' as const },
+                },
+              },
             ],
           }
         : {}),
     };
 
-    const [items, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: {
@@ -63,7 +90,18 @@ export class SearchController {
       this.prisma.product.count({ where }),
     ]);
 
-    return { items, total, page: Number(page) || 1 };
+    const items = rows.map((row) => {
+      const mapped = mapProduct(row);
+      const docsOk = row.company.documents.some((d) => d.status === 'ACCEPTED');
+      return {
+        ...mapped,
+        province: row.originProvince ?? row.company.province,
+        docsVerified: docsOk,
+        isPro: row.company.plan === 'PRO',
+      };
+    });
+
+    return { items, total, page: Number(page) || 1, take };
   }
 
   @Get('companies/:id')
@@ -86,9 +124,15 @@ export class SearchController {
           where: { isArchived: false },
           include: { category: true },
           take: 50,
+          orderBy: { updatedAt: 'desc' },
         },
       },
     });
-    return company;
+    if (!company) throw new NotFoundException('Entreprise introuvable');
+    return {
+      ...company,
+      products: company.products.map(mapProduct),
+      docsVerified: company.documents.some((d) => d.status === 'ACCEPTED'),
+    };
   }
 }

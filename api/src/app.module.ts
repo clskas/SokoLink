@@ -10,6 +10,7 @@ import { RfqsModule } from './rfqs/rfqs.module';
 import { MessagesModule } from './messages/messages.module';
 import { CompaniesModule } from './companies/companies.module';
 import { AdminModule } from './admin/admin.module';
+import { LegalModule } from './legal/legal.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AdminModule } from './admin/admin.module';
     MessagesModule,
     CompaniesModule,
     AdminModule,
+    LegalModule,
   ],
 })
 export class AppModule {}

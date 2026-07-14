@@ -187,6 +187,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               onPressed: _loading ? null : _submit,
               child: Text(_loading ? 'Création…' : 'Créer mon compte'),
             ),
+            TextButton(
+              onPressed: () => context.push('/legal/cgu'),
+              child: const Text('En créant un compte, j’accepte les CGU'),
+            ),
+            TextButton(
+              onPressed: () => context.push('/legal/manuel'),
+              child: const Text('Lire le manuel d’utilisation'),
+            ),
           ],
         ),
       ),

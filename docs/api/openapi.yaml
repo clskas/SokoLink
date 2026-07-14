@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: SokoLink API
+  version: 1.0.0
+  description: |
+    API REST marketplace B2B agroalimentaire RDC.
+    Documentation vivante — mettre à jour à chaque endpoint ajouté.
+servers:
+  - url: http://localhost:3100/v1
+    description: Local
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /provinces:
+    get:
+      summary: Liste des provinces RDC
+      responses:
+        '200':
+          description: Tableau de provinces
+  /categories:
+    get:
+      summary: Catégories agro
+      responses:
+        '200':
+          description: Tableau de catégories
+  /search:
+    get:
+      summary: Recherche produits (intent MP ou finis)
+      parameters:
+        - in: query
+          name: intent
+          schema:
+            type: string
+            enum: [mp, finished]
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: province
+          schema:
+            type: string
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: { items, total, page }
+  /products:
+    get:
+      summary: Catalogue de mon entreprise
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Liste produits
+    post:
+      summary: Créer un produit
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Produit créé
+  /products/{id}:
+    get:
+      summary: Fiche produit publique
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Produit
+    patch:
+      summary: Modifier produit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Produit mis à jour
+    delete:
+      summary: Archiver produit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Archivé
+  /rfqs:
+    get:
+      summary: Lister RFQ
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Liste
+    post:
+      summary: Publier RFQ
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: RFQ créée
+  /conversations:
+    get:
+      summary: Conversations
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Liste
+    post:
+      summary: Démarrer conversation
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Conversation
+  /legal/cgu:
+    get:
+      summary: CGU (markdown)
+      responses:
+        '200':
+          description: Document légal
+  /legal/confidentialite:
+    get:
+      summary: Politique confidentialité
+      responses:
+        '200':
+          description: Document légal
+  /legal/manuel:
+    get:
+      summary: Manuel utilisateur
+      responses:
+        '200':
+          description: Manuel markdown
+  /auth/register:
+    post:
+      summary: Inscription entreprise
+      responses:
+        '201':
+          description: Tokens + user
+  /auth/login:
+    post:
+      summary: Connexion
+      responses:
+        '201':
+          description: Tokens + user
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

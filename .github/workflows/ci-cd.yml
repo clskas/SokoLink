@@ -152,7 +152,8 @@ jobs:
       - name: Push API image
         uses: docker/build-push-action@v6
         with:
-          context: ./api
+          context: .
+          file: ./api/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/sokolink-api:latest

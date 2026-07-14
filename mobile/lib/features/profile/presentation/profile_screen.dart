@@ -59,6 +59,22 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const Divider(height: 32),
           ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Manuel d’utilisation'),
+            onTap: () => context.push('/legal/manuel'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('Conditions d’utilisation'),
+            onTap: () => context.push('/legal/cgu'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Confidentialité'),
+            onTap: () => context.push('/legal/confidentialite'),
+          ),
+          const Divider(height: 32),
+          ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Se déconnecter'),
             onTap: () async {

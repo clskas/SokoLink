@@ -193,40 +193,53 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final company = item['company'] is Map
-        ? Map<String, dynamic>.from(item['company'])
-        : item;
-    final companyId =
-        company['id']?.toString() ?? item['companyId']?.toString();
-    final productId =
-        item['productId']?.toString() ??
-        (item['type'] == 'product' ? item['id']?.toString() : null);
-    final title =
-        item['name']?.toString() ??
-        item['title']?.toString() ??
-        company['name']?.toString() ??
-        'Résultat';
+        ? Map<String, dynamic>.from(item['company'] as Map)
+        : <String, dynamic>{};
+    final companyId = company['id']?.toString();
+    final productId = item['id']?.toString();
+    final type = item['type']?.toString();
+    final title = item['name']?.toString() ?? 'Produit';
     final subtitle = [
-      item['category'] is Map ? item['category']['name'] : item['category'],
-      item['province'] is Map ? item['province']['name'] : item['province'],
-      company['name'],
-    ].whereType<Object>().map((e) => e.toString()).toSet().join(' • ');
+      type == 'MP' ? 'Matière première' : 'Produit fini',
+      item['category'] is Map ? item['category']['name'] : null,
+      item['province']?.toString(),
+      company['name']?.toString(),
+      item['price'] != null
+          ? '${item['price']} ${item['currency'] ?? 'CDF'}'
+          : null,
+    ].whereType<Object>().map((e) => e.toString()).join(' • ');
+
     return Card(
       child: ListTile(
         leading: Icon(
-          productId == null
-              ? Icons.business_outlined
-              : Icons.inventory_2_outlined,
+          type == 'MP' ? Icons.agriculture_outlined : Icons.inventory_2_outlined,
         ),
         title: Text(title),
         subtitle: Text(subtitle.isEmpty ? 'Voir les détails' : subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: companyId == null
+        isThreeLine: subtitle.length > 42,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (item['docsVerified'] == true)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.verified_outlined, size: 18),
+              ),
+            if (item['isPro'] == true)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.workspace_premium_outlined, size: 18),
+              ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: productId == null
             ? null
             : () => context.push(
-                productId == null
-                    ? '/company/$companyId'
-                    : '/product/$productId',
-              ),
+                  companyId == null
+                      ? '/product/$productId'
+                      : '/product/$productId',
+                ),
       ),
     );
   }

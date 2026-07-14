@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/build
+**/.dart_tool
+**/coverage
+**/.env
+**/.git
+mobile/
+admin/node_modules
+api/node_modules
+site/
+*.log

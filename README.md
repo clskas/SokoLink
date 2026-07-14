@@ -52,9 +52,22 @@ Sur `main` si tout passe :
 - Smoke production optionnel (`vars.PRODUCTION_API_URL`)
 - Webhook deploy optionnel (`secrets.DEPLOY_WEBHOOK_URL`)
 
-## Documentation produit
+## Documentation
 
+- [Index (doc vivante)](docs/index.md)
 - [PRD](docs/PRD.md)
 - [Cahier des charges](docs/cahier-des-charges.md)
 - [User stories](docs/user-stories.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Manuel utilisateur](docs/manuel-utilisateur.md)
+- [CGU](docs/legal/cgu.md)
+- [Confidentialité](docs/legal/confidentialite.md)
+- [OpenAPI](docs/api/openapi.yaml)
+- [Changelog](docs/CHANGELOG.md)
+
+Générer un site MkDocs local :
+
+```bash
+pip install mkdocs
+cd docs && mkdocs serve
+```

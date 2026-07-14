@@ -1,0 +1,23 @@
+site_name: SokoLink Docs
+site_description: Documentation vivante marketplace B2B agro RDC
+docs_dir: .
+site_dir: ../site
+nav:
+  - Accueil: index.md
+  - Manuel: manuel-utilisateur.md
+  - Légal:
+      - CGU: legal/cgu.md
+      - Confidentialité: legal/confidentialite.md
+  - Produit:
+      - PRD: PRD.md
+      - Cahier des charges: cahier-des-charges.md
+      - User stories: user-stories.md
+  - Technique:
+      - Architecture: ARCHITECTURE.md
+      - Changelog: CHANGELOG.md
+theme:
+  name: readthedocs
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true

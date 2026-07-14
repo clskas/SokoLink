@@ -11,6 +11,7 @@ import 'package:sokolink/features/directory/presentation/detail_screens.dart';
 import 'package:sokolink/features/messages/presentation/message_screens.dart';
 import 'package:sokolink/features/profile/presentation/profile_screen.dart';
 import 'package:sokolink/features/rfqs/presentation/rfq_screens.dart';
+import 'package:sokolink/features/legal/presentation/legal_document_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
@@ -20,13 +21,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: _AuthListenable(ref),
     redirect: (context, state) {
       final status = auth.status;
-      final loggingIn =
-          state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      final loc = state.matchedLocation;
+      final public = loc == '/login' ||
+          loc == '/register' ||
+          loc.startsWith('/legal');
 
       if (status == AuthStatus.unknown) return null;
-      if (status == AuthStatus.unauthenticated && !loggingIn) return '/login';
-      if (status == AuthStatus.authenticated && loggingIn) return '/home';
+      if (status == AuthStatus.unauthenticated && !public) return '/login';
+      if (status == AuthStatus.authenticated &&
+          (loc == '/login' || loc == '/register')) {
+        return '/home';
+      }
       return null;
     },
     routes: [
@@ -107,6 +112,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/messages/:id',
         builder: (_, state) =>
             ConversationThreadScreen(id: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/legal/:slug',
+        builder: (_, state) {
+          final slug = state.pathParameters['slug']!;
+          final titles = {
+            'cgu': 'Conditions d’utilisation',
+            'confidentialite': 'Confidentialité',
+            'manuel': 'Manuel d’utilisation',
+          };
+          return LegalDocumentScreen(
+            slug: slug,
+            title: titles[slug] ?? 'Documentation',
+          );
+        },
       ),
     ],
   );
