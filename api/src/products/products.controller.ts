@@ -9,7 +9,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { CompanyRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveCompanyGuard } from '../auth/active-company.guard';
+import { CompanyRolesGuard } from '../auth/company-roles.guard';
+import { RequireCompanyRoles } from '../auth/company-roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ProductsService } from './products.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -18,14 +22,14 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveCompanyGuard)
   @Get()
   listMine(@CurrentUser() user: { companyId: string | null }) {
     if (!user.companyId) return [];
     return this.products.listMine(user.companyId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveCompanyGuard)
   @Get('mine')
   mine(@CurrentUser() user: { companyId: string | null }) {
     if (!user.companyId) return [];
@@ -37,7 +41,8 @@ export class ProductsController {
     return this.products.getPublic(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveCompanyGuard, CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.SUPPLIER_MP, CompanyRole.PROCESSOR)
   @Post()
   create(
     @CurrentUser() user: { companyId: string | null },
@@ -47,7 +52,8 @@ export class ProductsController {
     return this.products.create(user.companyId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveCompanyGuard, CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.SUPPLIER_MP, CompanyRole.PROCESSOR)
   @Patch(':id')
   update(
     @CurrentUser() user: { companyId: string | null },
@@ -58,7 +64,8 @@ export class ProductsController {
     return this.products.update(user.companyId, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveCompanyGuard, CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.SUPPLIER_MP, CompanyRole.PROCESSOR)
   @Delete(':id')
   archive(
     @CurrentUser() user: { companyId: string | null },

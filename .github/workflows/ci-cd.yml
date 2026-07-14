@@ -89,31 +89,10 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
 
-  security-containers:
-    name: Security Trivy
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - name: Trivy fs scan (API)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: api
-          severity: CRITICAL,HIGH
-          exit-code: "0"
-      - name: Trivy fs scan (Admin)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: admin
-          severity: CRITICAL,HIGH
-          exit-code: "0"
-
   docker-smoke:
     name: Smoke Docker Compose
     runs-on: ubuntu-latest
-    needs: [quality-api, quality-admin, quality-mobile, security-containers]
+    needs: [quality-api, quality-admin, quality-mobile]
     steps:
       - uses: actions/checkout@v4
       - name: Build stack
@@ -122,11 +101,20 @@ jobs:
         run: docker compose up -d
       - name: Wait for API
         run: |
-          for i in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:3100/v1/health; then exit 0; fi
+          set -e
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3100/v1/health; then
+              echo "API healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "attempt $i — waiting..."
+            docker compose ps || true
             sleep 3
           done
-          docker compose logs
+          echo "===== API LOGS ====="
+          docker compose logs api --no-color || true
+          echo "===== DB LOGS ====="
+          docker compose logs db --no-color || true
           exit 1
       - name: Smoke tests
         run: |

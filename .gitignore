@@ -12,9 +12,14 @@ mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/.packages
 mobile/build/
+mobile/android/build/
+mobile/android/.gradle/
 mobile/.pub-cache/
 mobile/.pub/
 mobile/ios/Pods/
+
+# Scratch
+ci-jobs.json
 
 # IDE
 .idea/

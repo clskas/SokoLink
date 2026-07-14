@@ -19,11 +19,24 @@ dependencies:
   google_fonts: ^6.2.1
   url_launcher: ^6.3.1
   file_picker: ^11.0.2
+  crypto: ^3.0.6
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/sokolink-icon.png
+  adaptive_icon_background: "#F3EDE4"
+  adaptive_icon_foreground: assets/branding/sokolink-icon.png
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/sokolink-icon.png

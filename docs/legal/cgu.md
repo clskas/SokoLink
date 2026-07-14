@@ -13,9 +13,9 @@ SokoLink est une **plateforme de mise en relation** (annuaire, catalogue, demand
 
 **SokoLink n’est pas partie** aux contrats commerciaux conclus entre utilisateurs. Les négociations, paiements et livraisons restent de la responsabilité exclusive des entreprises concernées (sauf évolution future explicitement annoncée — escrow hors MVP).
 
-## 3. Inscription
+## 3. Inscription et authentification
 
-L’utilisateur garantit l’exactitude des informations fournies (raison sociale, contacts, documents RCCM / NIF / pièce d’identité). Les documents sont auto-déclarés puis vérifiés administrativement. Toute fausse déclaration peut entraîner la suspension du compte.
+L’accès se fait par **OTP téléphone**, puis **PIN local** sur l’appareil. L’utilisateur garantit l’exactitude des informations fournies (raison sociale, contacts, documents RCCM / NIF / pièce d’identité). Les documents sont auto-déclarés puis vérifiés administrativement. Toute fausse déclaration peut entraîner la suspension du compte. Le PIN est stocké localement (empreinte hashée) et ne remplace pas l’OTP pour une première inscription ou après déconnexion.
 
 ## 4. Comportements interdits
 

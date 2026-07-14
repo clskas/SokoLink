@@ -5,17 +5,20 @@
 
 ---
 
-## 1. Démarrer
+## 1. Démarrer (OTP + PIN local)
 
 1. Installez l’application mobile SokoLink (Android / iOS).
-2. Créez un compte avec votre email et un mot de passe (8 caractères minimum).
-3. Renseignez la **raison sociale**, la **province**, le téléphone / WhatsApp.
-4. Cochez un ou plusieurs rôles :
-   - Fournisseur de matières premières
-   - Transformateur / fabricant
-   - Acheteur B2B
+2. Entrez votre **numéro de téléphone** (RDC) pour recevoir un **code OTP**.
+3. Première connexion : complétez le profil (**raison sociale**, **province**, rôles).
+4. Créez ensuite un **code PIN local** (4 chiffres minimum). Les prochaines ouvertures de l’app demanderont ce PIN — **pas un nouvel OTP** — pour limiter les coûts SMS.
+5. La session reste active **jusqu’à déconnexion** explicite (Profil → Se déconnecter). Après déconnexion, un nouvel OTP est requis.
 
-Astuce : un transformateur peut cocher plusieurs rôles dans le même compte.
+Rôles possibles :
+- Fournisseur de matières premières
+- Transformateur / fabricant
+- Acheteur B2B
+
+**Hors-ligne :** recherche, catalogue et RFQs déjà consultés restent lisibles via le cache ; une RFQ créée sans réseau est mise en file et envoyée au retour de connexion.
 
 ---
 

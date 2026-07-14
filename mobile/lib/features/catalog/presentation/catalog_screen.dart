@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sokolink/core/network/api_helpers.dart';
+import 'package:sokolink/core/offline/offline_cache.dart';
+import 'package:sokolink/features/auth/application/auth_controller.dart';
 
 class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
@@ -18,9 +20,15 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     _products = _load();
   }
 
-  Future<List<Map<String, dynamic>>> _load() =>
-      ref.read(marketplaceApiProvider).list('/products');
-
+  Future<List<Map<String, dynamic>>> _load() async {
+    try {
+      final items = await ref.read(marketplaceApiProvider).list('/products');
+      await ref.read(offlineCacheProvider).cacheProducts(items);
+      return items;
+    } catch (_) {
+      return ref.read(offlineCacheProvider).products();
+    }
+  }
   void _reload() => setState(() => _products = _load());
 
   @override
@@ -179,6 +187,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   void initState() {
     super.initState();
     final p = widget.product;
+    final user = ref.read(authControllerProvider).user;
     _name = TextEditingController(text: p?['name']?.toString());
     _description = TextEditingController(text: p?['description']?.toString());
     _price = TextEditingController(
@@ -186,7 +195,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
     _unit = TextEditingController(text: p?['unit']?.toString() ?? 'u');
     _moq = TextEditingController(text: p?['moq']?.toString());
-    _type = p?['type']?.toString() ?? 'FINISHED';
+    final allowed = <String>[
+      if (user?.canSellMp == true) 'MP',
+      if (user?.canSellFinished == true) 'FINISHED',
+    ];
+    final initial = p?['type']?.toString();
+    _type = (initial != null && allowed.contains(initial))
+        ? initial
+        : (allowed.isNotEmpty ? allowed.first : 'FINISHED');
     _categoryId = p?['categoryId']?.toString() ??
         (p?['category'] is Map ? p!['category']['id']?.toString() : null);
     _province = p?['originProvince']?.toString();
@@ -240,19 +256,33 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 children: [
                   Text('Type', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 8),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'MP',
-                        label: Text('Matière première'),
-                      ),
-                      ButtonSegment(
-                        value: 'FINISHED',
-                        label: Text('Produit fini'),
-                      ),
-                    ],
-                    selected: {_type},
-                    onSelectionChanged: (v) => setState(() => _type = v.first),
+                  Builder(
+                    builder: (context) {
+                      final user = ref.watch(authControllerProvider).user;
+                      final segments = <ButtonSegment<String>>[
+                        if (user?.canSellMp == true)
+                          const ButtonSegment(
+                            value: 'MP',
+                            label: Text('Matière première'),
+                          ),
+                        if (user?.canSellFinished == true)
+                          const ButtonSegment(
+                            value: 'FINISHED',
+                            label: Text('Produit fini'),
+                          ),
+                      ];
+                      if (segments.isEmpty) {
+                        return const Text(
+                          'Votre rôle ne permet pas de publier de produits.',
+                        );
+                      }
+                      return SegmentedButton<String>(
+                        segments: segments,
+                        selected: {_type},
+                        onSelectionChanged: (v) =>
+                            setState(() => _type = v.first),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(

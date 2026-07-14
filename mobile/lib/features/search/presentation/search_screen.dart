@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sokolink/core/network/api_helpers.dart';
+import 'package:sokolink/core/offline/offline_cache.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key, this.initialIntent = 'mp'});
@@ -63,9 +64,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               'page': 1,
             },
           );
+      await ref.read(offlineCacheProvider).cacheSearch(items);
       if (mounted) setState(() => _results = items);
     } catch (e) {
-      if (mounted) setState(() => _error = apiError(e));
+      final cached = await ref.read(offlineCacheProvider).search();
+      if (cached.isNotEmpty && mounted) {
+        setState(() {
+          _results = cached;
+          _error = 'Hors-ligne : résultats en cache affichés';
+        });
+      } else if (mounted) {
+        setState(() => _error = apiError(e));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

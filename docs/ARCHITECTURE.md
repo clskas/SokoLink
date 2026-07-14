@@ -43,7 +43,7 @@
 | ORM | **Prisma** | Schéma lisible, migrations |
 | DB | **PostgreSQL** | Relationnel (RFQ, rôles, plans) |
 | Fichiers | Disque local en dev ; **S3-compatible** en prod | Docs RCCM / photos |
-| Auth | Email + mot de passe, **JWT** access + refresh | Simple MVP ; OTP téléphone en V1.1 |
+| Auth | **OTP téléphone** + **PIN local** (appareil) ; **JWT** long (jusqu’au logout) | Réduit le coût SMS ; session persistante |
 | Email | Provider transactionnel (Resend / SMTP) | Reset password, notifs RFQ |
 
 ---

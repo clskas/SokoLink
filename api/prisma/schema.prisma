@@ -64,15 +64,27 @@ enum DealStatus {
 
 model User {
   id           String       @id @default(cuid())
-  email        String       @unique
-  passwordHash String
+  email        String?      @unique
+  passwordHash String?
   fullName     String?
-  phone        String?
+  phone        String?      @unique
   role         PlatformRole @default(USER)
   companyId    String?      @unique
   company      Company?     @relation(fields: [companyId], references: [id])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+}
+
+model OtpChallenge {
+  id         String   @id @default(cuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([phone, createdAt])
 }
 
 model Company {

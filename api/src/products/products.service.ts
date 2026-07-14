@@ -30,6 +30,7 @@ export class ProductsService {
 
   async create(companyId: string, dto: CreateProductDto) {
     await this.assertProductQuota(companyId);
+    await this.assertProductTypeAllowed(companyId, dto.type ?? ProductType.FINISHED);
     let categoryId = dto.categoryId;
     if (!categoryId) {
       const first = await this.prisma.category.findFirst();
@@ -116,6 +117,29 @@ export class ProductsService {
       throw new ForbiddenException();
     }
     return product;
+  }
+
+  private async assertProductTypeAllowed(
+    companyId: string,
+    type: ProductType,
+  ) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: { roles: true },
+    });
+    if (type === ProductType.MP && !company.roles.includes('SUPPLIER_MP')) {
+      throw new ForbiddenException(
+        'Seuls les fournisseurs de matières premières peuvent publier des MP.',
+      );
+    }
+    if (
+      type === ProductType.FINISHED &&
+      !company.roles.includes('PROCESSOR')
+    ) {
+      throw new ForbiddenException(
+        'Seuls les transformateurs peuvent publier des produits finis.',
+      );
+    }
   }
 
   private async assertProductQuota(companyId: string) {

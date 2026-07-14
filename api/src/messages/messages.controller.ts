@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { IsOptional, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveCompanyGuard } from '../auth/active-company.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MessagesService } from './messages.service';
 
@@ -32,7 +33,7 @@ class PostMessageDto {
 }
 
 @Controller('conversations')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveCompanyGuard)
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 

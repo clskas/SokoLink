@@ -8,13 +8,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { CompanyRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveCompanyGuard } from '../auth/active-company.guard';
+import { CompanyRolesGuard } from '../auth/company-roles.guard';
+import { RequireCompanyRoles } from '../auth/company-roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RfqsService } from './rfqs.service';
 import { CreateRfqDto, RespondRfqDto, UpdateRfqDto } from './dto/rfq.dto';
 
 @Controller('rfqs')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveCompanyGuard)
 export class RfqsController {
   constructor(private readonly rfqs: RfqsService) {}
 
@@ -29,6 +33,8 @@ export class RfqsController {
     return this.rfqs.get(id);
   }
 
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.BUYER)
   @Post()
   create(
     @CurrentUser() user: { companyId: string | null },
@@ -38,6 +44,8 @@ export class RfqsController {
     return this.rfqs.create(user.companyId, dto);
   }
 
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.SUPPLIER_MP, CompanyRole.PROCESSOR)
   @Post(':id/responses')
   respond(
     @CurrentUser() user: { companyId: string | null },
@@ -48,6 +56,8 @@ export class RfqsController {
     return this.rfqs.respond(user.companyId, id, dto);
   }
 
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.BUYER)
   @Patch(':id')
   update(
     @CurrentUser() user: { companyId: string | null },
@@ -58,6 +68,8 @@ export class RfqsController {
     return this.rfqs.updateStatus(user.companyId, id, dto.status);
   }
 
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.BUYER)
   @Patch(':id/close')
   close(
     @CurrentUser() user: { companyId: string | null },

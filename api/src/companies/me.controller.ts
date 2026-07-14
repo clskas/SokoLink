@@ -16,6 +16,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveCompanyGuard } from '../auth/active-company.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -46,7 +47,7 @@ const uploadRoot = join(process.cwd(), 'uploads');
 if (!existsSync(uploadRoot)) mkdirSync(uploadRoot, { recursive: true });
 
 @Controller('me')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveCompanyGuard)
 export class MeController {
   constructor(private readonly prisma: PrismaService) {}
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sokolink/core/network/api_helpers.dart';
+import 'package:sokolink/core/offline/offline_cache.dart';
+import 'package:sokolink/features/auth/application/auth_controller.dart';
 
 class RfqListScreen extends ConsumerStatefulWidget {
   const RfqListScreen({super.key});
@@ -17,19 +19,29 @@ class _RfqListScreenState extends ConsumerState<RfqListScreen> {
     _future = _load();
   }
 
-  Future<List<Map<String, dynamic>>> _load() =>
-      ref.read(marketplaceApiProvider).list('/rfqs');
+  Future<List<Map<String, dynamic>>> _load() async {
+    try {
+      final items = await ref.read(marketplaceApiProvider).list('/rfqs');
+      await ref.read(offlineCacheProvider).cacheRfqs(items);
+      return items;
+    } catch (_) {
+      return ref.read(offlineCacheProvider).rfqs();
+    }
+  }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Demandes de prix')),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () async {
-        final done = await context.push<bool>('/rfqs/new');
-        if (done == true && mounted) setState(() => _future = _load());
-      },
-      icon: const Icon(Icons.add),
-      label: const Text('Créer'),
-    ),
+    floatingActionButton: ref.watch(authControllerProvider).user?.canCreateRfq ==
+            true
+        ? FloatingActionButton.extended(
+            onPressed: () async {
+              final done = await context.push<bool>('/rfqs/new');
+              if (done == true && mounted) setState(() => _future = _load());
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Créer'),
+          )
+        : null,
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,
       builder: (_, s) {
@@ -132,20 +144,32 @@ class _RfqFormScreenState extends ConsumerState<RfqFormScreen> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     setState(() => _saving = true);
+    final payload = {
+      'title': _title.text.trim(),
+      'quantity': _quantity.text.trim(),
+      'description': _details.text.trim(),
+      if (widget.companyId != null) 'companyId': widget.companyId,
+      if (widget.productId != null) 'productId': widget.productId,
+    };
     try {
-      await ref.read(marketplaceApiProvider).post('/rfqs', {
-        'title': _title.text.trim(),
-        'quantity': _quantity.text.trim(),
-        'description': _details.text.trim(),
-        if (widget.companyId != null) 'companyId': widget.companyId,
-        if (widget.productId != null) 'productId': widget.productId,
-      });
+      await ref.read(marketplaceApiProvider).post('/rfqs', payload);
       if (mounted) context.pop(true);
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      await ref.read(offlineCacheProvider).enqueue({
+        'method': 'POST',
+        'path': '/rfqs',
+        'data': payload,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Hors-ligne : demande enregistrée localement, envoi au retour réseau.',
+            ),
+          ),
+        );
+        context.pop(true);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

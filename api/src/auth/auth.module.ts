@@ -5,9 +5,13 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { CompanyRolesGuard } from './company-roles.guard';
+import { ActiveCompanyGuard } from './active-company.guard';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -18,7 +22,12 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    CompanyRolesGuard,
+    ActiveCompanyGuard,
+  ],
+  exports: [AuthService, CompanyRolesGuard, ActiveCompanyGuard],
 })
 export class AuthModule {}
