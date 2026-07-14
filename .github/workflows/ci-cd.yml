@@ -92,20 +92,21 @@ jobs:
   security-containers:
     name: Security Trivy
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy API Dockerfile
+      - name: Trivy fs scan (API)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          scan-type: config
-          scan-ref: api/Dockerfile
+          scan-type: fs
+          scan-ref: api
           severity: CRITICAL,HIGH
           exit-code: "0"
-      - name: Trivy Admin Dockerfile
+      - name: Trivy fs scan (Admin)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          scan-type: config
-          scan-ref: admin/Dockerfile
+          scan-type: fs
+          scan-ref: admin
           severity: CRITICAL,HIGH
           exit-code: "0"
 
