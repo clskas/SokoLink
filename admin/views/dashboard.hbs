@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}}</title>
+  <style>
+    :root { --bg:#f3ede4; --ink:#1a1f1c; --green:#1b6b4a; --white:#fff; --clay:#c45c26; }
+    body { font-family: system-ui,sans-serif; background: var(--bg); color: var(--ink); margin:0; }
+    header { background: var(--green); color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; }
+    main { max-width:1100px; margin:0 auto; padding:24px; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+    .stat { background:var(--white); padding:16px; border-radius:10px; }
+    .stat strong { display:block; font-size:28px; color:var(--green); }
+    section { background:var(--white); padding:16px; border-radius:10px; margin-bottom:16px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid #eee; }
+    form.inline { display:inline; }
+    button { background:var(--green); color:#fff; border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
+    button.danger { background:var(--clay); }
+    a { color:#fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>SokoLink Admin</strong></div>
+    <a href="/logout">Déconnexion</a>
+  </header>
+  <main>
+    <div class="stats">
+      <div class="stat"><strong>{{stats.companies}}</strong>Entreprises</div>
+      <div class="stat"><strong>{{stats.products}}</strong>Produits</div>
+      <div class="stat"><strong>{{stats.rfqs}}</strong>RFQ</div>
+      <div class="stat"><strong>{{stats.pendingDocs}}</strong>Docs en revue</div>
+      <div class="stat"><strong>{{stats.pendingPro}}</strong>Demandes Pro</div>
+    </div>
+
+    <section>
+      <h2>Documents à valider</h2>
+      <table>
+        <tr><th>Entreprise</th><th>Type</th><th>Actions</th></tr>
+        {{#each documents}}
+        <tr>
+          <td>{{company.name}}</td>
+          <td>{{type}}</td>
+          <td>
+            <form class="inline" method="post" action="/documents/{{id}}/accept"><button type="submit">Accepter</button></form>
+            <form class="inline" method="post" action="/documents/{{id}}/reject"><button class="danger" type="submit">Rejeter</button></form>
+          </td>
+        </tr>
+        {{/each}}
+      </table>
+    </section>
+
+    <section>
+      <h2>Demandes plan Pro</h2>
+      <table>
+        <tr><th>Company ID</th><th>Note</th><th></th></tr>
+        {{#each proRequests}}
+        <tr>
+          <td>{{companyId}}</td>
+          <td>{{note}}</td>
+          <td><form method="post" action="/pro/{{id}}/activate"><button type="submit">Activer Pro</button></form></td>
+        </tr>
+        {{/each}}
+      </table>
+    </section>
+
+    <section>
+      <h2>Entreprises</h2>
+      <table>
+        <tr><th>Nom</th><th>Province</th><th>Plan</th><th>Statut</th><th></th></tr>
+        {{#each companies}}
+        <tr>
+          <td>{{name}}</td>
+          <td>{{province}}</td>
+          <td>{{plan}}</td>
+          <td>{{#if isSuspended}}Suspendu{{else}}Actif{{/if}}</td>
+          <td>
+            {{#unless isSuspended}}
+            <form method="post" action="/companies/{{id}}/suspend"><button class="danger" type="submit">Suspendre</button></form>
+            {{/unless}}
+          </td>
+        </tr>
+        {{/each}}
+      </table>
+    </section>
+  </main>
+</body>
+</html>

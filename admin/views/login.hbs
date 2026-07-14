@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}}</title>
+  <style>
+    :root { --bg:#f3ede4; --ink:#1a1f1c; --green:#1b6b4a; --white:#fff; }
+    body { font-family: Georgia, serif; background: var(--bg); color: var(--ink); margin:0; }
+    .wrap { max-width: 420px; margin: 10vh auto; padding: 24px; background: var(--white); border-radius: 12px; }
+    h1 { color: var(--green); margin-top:0; }
+    label { display:block; margin: 12px 0 4px; font-size: 14px; }
+    input { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box; }
+    button { margin-top:16px; width:100%; padding:12px; background:var(--green); color:#fff; border:0; border-radius:8px; font-size:16px; cursor:pointer; }
+    .error { color:#a33; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SokoLink Admin</h1>
+    <p>Back-office marketplace agro RDC</p>
+    {{#if error}}<p class="error">{{error}}</p>{{/if}}
+    <form method="post" action="/login">
+      <label>Email</label>
+      <input type="email" name="email" required value="admin@sokolink.cd" />
+      <label>Mot de passe</label>
+      <input type="password" name="password" required />
+      <button type="submit">Se connecter</button>
+    </form>
+  </div>
+</body>
+</html>

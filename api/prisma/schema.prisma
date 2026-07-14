@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlatformRole {
+  USER
+  ADMIN
+}
+
+enum CompanyRole {
+  SUPPLIER_MP
+  PROCESSOR
+  BUYER
+}
+
+enum DocumentType {
+  RCCM
+  NIF
+  ID_CARD
+}
+
+enum DocumentStatus {
+  NOT_SUBMITTED
+  IN_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+enum ProductType {
+  MP
+  FINISHED
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+  CANCELLED
+}
+
+enum RfqStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+}
+
+enum DealStatus {
+  IN_DISCUSSION
+  CLOSED_WON
+  CLOSED_LOST
+  NONE
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  fullName     String?
+  phone        String?
+  role         PlatformRole @default(USER)
+  companyId    String?      @unique
+  company      Company?     @relation(fields: [companyId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Company {
+  id             String             @id @default(cuid())
+  name           String
+  description    String?
+  province       String
+  city           String?
+  phone          String
+  whatsapp       String?
+  email          String?
+  logoUrl        String?
+  plan           SubscriptionPlan   @default(FREE)
+  planStatus     SubscriptionStatus @default(ACTIVE)
+  isSuspended    Boolean            @default(false)
+  roles          CompanyRole[]
+  documents      Document[]
+  products       Product[]
+  issuedRfqs     Rfq[]              @relation("RfqIssuer")
+  rfqResponses   RfqResponse[]
+  user           User?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Document {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type         DocumentType
+  fileUrl      String
+  status       DocumentStatus @default(IN_REVIEW)
+  rejectReason String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([companyId, type])
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  nameFr   String
+  products Product[]
+  rfqs     Rfq[]
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  companyId      String
+  company        Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category    @relation(fields: [categoryId], references: [id])
+  type           ProductType
+  name           String
+  description    String
+  unit           String
+  indicativePrice Decimal?   @db.Decimal(12, 2)
+  currency       String      @default("CDF")
+  moq            String?
+  capacityPerMonth String?
+  originProvince String?
+  photoUrls      String[]
+  isArchived     Boolean     @default(false)
+  isFeatured     Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([type, categoryId, originProvince])
+}
+
+model Rfq {
+  id              String      @id @default(cuid())
+  issuerCompanyId String
+  issuerCompany   Company     @relation("RfqIssuer", fields: [issuerCompanyId], references: [id])
+  title           String
+  type            ProductType
+  categoryId      String
+  category        Category    @relation(fields: [categoryId], references: [id])
+  quantity        String
+  unit            String
+  budgetHint      String?
+  targetProvinces String[]
+  deadline        DateTime?
+  details         String
+  status          RfqStatus   @default(DRAFT)
+  isOpen          Boolean     @default(true)
+  dealStatus      DealStatus  @default(NONE)
+  responses       RfqResponse[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model RfqResponse {
+  id        String   @id @default(cuid())
+  rfqId     String
+  rfq       Rfq      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  price     String
+  leadTime  String
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rfqId, companyId])
+}
+
+model Conversation {
+  id         String    @id @default(cuid())
+  companyAId String
+  companyBId String
+  productId  String?
+  rfqId      String?
+  messages   Message[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([companyAId, companyBId, productId, rfqId])
+  @@index([companyAId, companyBId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUserId   String
+  body           String
+  createdAt      DateTime     @default(now())
+}
+
+model ProRequest {
+  id          String   @id @default(cuid())
+  companyId   String
+  proofUrl    String
+  note        String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

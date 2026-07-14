@@ -1,0 +1,51 @@
+﻿services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sokolink
+      POSTGRES_PASSWORD: sokolink
+      POSTGRES_DB: sokolink
+    ports:
+      - "5434:5432"
+    volumes:
+      - sokolink_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sokolink -d sokolink"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://sokolink:sokolink@db:5432/sokolink?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-sokolink-prod-access-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-sokolink-prod-refresh-change-me}
+      JWT_ACCESS_EXPIRES: 1d
+      JWT_REFRESH_EXPIRES: 30d
+      PORT: 3100
+      APP_NAME: SokoLink
+    ports:
+      - "3100:3100"
+    volumes:
+      - sokolink_uploads:/app/uploads
+
+  admin:
+    build: ./admin
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_BASE_URL: http://api:3100/v1
+      ADMIN_PORT: 3200
+    ports:
+      - "3200:3200"
+
+volumes:
+  sokolink_pg:
+  sokolink_uploads:

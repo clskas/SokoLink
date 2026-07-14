@@ -1,0 +1,186 @@
+name: SokoLink CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/sokolink-api
+  IMAGE_ADMIN: ghcr.io/${{ github.repository_owner }}/sokolink-admin
+
+jobs:
+  quality-api:
+    name: Quality — API (lint, unit, security audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sokolink
+          POSTGRES_PASSWORD: sokolink
+          POSTGRES_DB: sokolink
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sokolink -d sokolink"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sokolink:sokolink@localhost:5432/sokolink?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      PORT: 3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run prisma:seed
+      - name: Security — npm audit (high+)
+        run: npm audit --audit-level=high
+      - name: Build
+        run: npm run build
+      - name: Unit tests
+        run: npm test -- --ci --coverage
+      - name: Regression e2e
+        run: npm run test:e2e -- --runInBand
+
+  quality-admin:
+    name: Quality — Admin web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - run: npm ci
+      - name: Security — npm audit (high+)
+        run: npm audit --audit-level=high
+      - run: npm run build
+
+  quality-mobile:
+    name: Quality — Flutter analyze & tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  security-containers:
+    name: Security — Trivy Dockerfile scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy on API Dockerfile
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: api/Dockerfile
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+      - name: Run Trivy on Admin Dockerfile
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: admin/Dockerfile
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  docker-smoke:
+    name: Regression/Smoke — Docker compose
+    runs-on: ubuntu-latest
+    needs: [quality-api, quality-admin, quality-mobile, security-containers]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build stack
+        run: docker compose build
+      - name: Start stack
+        run: docker compose up -d
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3100/v1/health; then exit 0; fi
+            sleep 3
+          done
+          docker compose logs
+          exit 1
+      - name: Smoke tests
+        run: |
+          chmod +x scripts/smoke.sh
+          SMOKE_BASE_URL=http://127.0.0.1:3100/v1 ./scripts/smoke.sh
+      - name: Seed in container
+        run: docker compose exec -T api npx prisma db seed || true
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  deploy:
+    name: Deploy — publish images + production smoke
+    runs-on: ubuntu-latest
+    needs: [docker-smoke]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:latest
+            ${{ env.IMAGE_API }}:${{ github.sha }}
+      - name: Build & push Admin image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./admin
+          push: true
+          tags: |
+            ${{ env.IMAGE_ADMIN }}:latest
+            ${{ env.IMAGE_ADMIN }}:${{ github.sha }}
+      - name: Production smoke (optional)
+        if: ${{ vars.PRODUCTION_API_URL != '' }}
+        env:
+          SMOKE_BASE_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          chmod +x scripts/smoke.sh
+          ./scripts/smoke.sh
+      - name: Deploy hook (optional)
+        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
+        run: |
+          curl -fsS -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"sha\":\"${{ github.sha }}\",\"repo\":\"${{ github.repository }}\"}"
