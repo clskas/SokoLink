@@ -79,6 +79,7 @@ export class SearchController {
               province: true,
               city: true,
               plan: true,
+              isVerified: true,
               documents: { select: { type: true, status: true } },
             },
           },
@@ -98,10 +99,33 @@ export class SearchController {
         province: row.originProvince ?? row.company.province,
         docsVerified: docsOk,
         isPro: row.company.plan === 'PRO',
+        isVerified: row.company.isVerified,
       };
     });
 
     return { items, total, page: Number(page) || 1, take };
+  }
+
+  @Get('companies')
+  async companies(@Query('q') q?: string) {
+    return this.prisma.company.findMany({
+      where: {
+        isSuspended: false,
+        ...(q
+          ? { name: { contains: q, mode: 'insensitive' as const } }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        province: true,
+        roles: true,
+        plan: true,
+        isVerified: true,
+      },
+      orderBy: { name: 'asc' },
+      take: 50,
+    });
   }
 
   @Get('companies/:id')
@@ -118,6 +142,7 @@ export class SearchController {
         whatsapp: true,
         email: true,
         plan: true,
+        isVerified: true,
         roles: true,
         documents: { select: { type: true, status: true } },
         products: {

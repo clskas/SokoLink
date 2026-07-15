@@ -38,11 +38,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         api.list('/provinces'),
         api.list('/categories'),
       ]);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _provinces = values[0];
           _categories = values[1];
         });
+      }
     } catch (_) {}
   }
 
@@ -205,7 +206,6 @@ class _ResultCard extends StatelessWidget {
     final company = item['company'] is Map
         ? Map<String, dynamic>.from(item['company'] as Map)
         : <String, dynamic>{};
-    final companyId = company['id']?.toString();
     final productId = item['id']?.toString();
     final type = item['type']?.toString();
     final title = item['name']?.toString() ?? 'Produit';
@@ -230,10 +230,10 @@ class _ResultCard extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (item['docsVerified'] == true)
+            if (item['isVerified'] == true)
               const Padding(
                 padding: EdgeInsets.only(right: 4),
-                child: Icon(Icons.verified_outlined, size: 18),
+                child: Icon(Icons.verified, size: 18, color: Colors.green),
               ),
             if (item['isPro'] == true)
               const Padding(
@@ -245,11 +245,7 @@ class _ResultCard extends StatelessWidget {
         ),
         onTap: productId == null
             ? null
-            : () => context.push(
-                  companyId == null
-                      ? '/product/$productId'
-                      : '/product/$productId',
-                ),
+            : () => context.push('/product/$productId'),
       ),
     );
   }

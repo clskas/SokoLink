@@ -10,6 +10,7 @@ import { SearchModule } from './search/search.module';
 import { RfqsModule } from './rfqs/rfqs.module';
 import { MessagesModule } from './messages/messages.module';
 import { CompaniesModule } from './companies/companies.module';
+import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
 import { LegalModule } from './legal/legal.module';
 
@@ -25,6 +26,7 @@ import { LegalModule } from './legal/legal.module';
     RfqsModule,
     MessagesModule,
     CompaniesModule,
+    BillingModule,
     AdminModule,
     LegalModule,
   ],

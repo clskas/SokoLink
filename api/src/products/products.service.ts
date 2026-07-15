@@ -67,13 +67,28 @@ export class ProductsService {
 
   async update(companyId: string, id: string, dto: UpdateProductDto) {
     const product = await this.getOwned(companyId, id);
+    if (dto.type) {
+      await this.assertProductTypeAllowed(companyId, dto.type);
+    }
+    if (dto.categoryId) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: dto.categoryId },
+      });
+      if (!category) throw new BadRequestException('Catégorie invalide');
+    }
+    const price =
+      dto.indicativePrice ??
+      (dto.price != null ? String(dto.price) : undefined);
     return this.prisma.product.update({
       where: { id: product.id },
       data: {
+        ...(dto.type ? { type: dto.type } : {}),
+        ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
         name: dto.name,
         description: dto.description,
         unit: dto.unit,
-        indicativePrice: dto.indicativePrice,
+        ...(price !== undefined ? { indicativePrice: price } : {}),
+        currency: dto.currency,
         moq: dto.moq,
         capacityPerMonth: dto.capacityPerMonth,
         originProvince: dto.originProvince,

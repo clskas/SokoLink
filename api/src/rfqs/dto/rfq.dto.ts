@@ -1,5 +1,4 @@
 import {
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -54,6 +53,15 @@ export class CreateRfqDto {
   @IsOptional()
   @IsBoolean()
   isOpen?: boolean;
+
+  // Contexte facultatif quand la RFQ est lancée depuis une fiche produit/entreprise.
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
+  @IsOptional()
+  @IsString()
+  companyId?: string;
 }
 
 export class RespondRfqDto {
@@ -77,9 +85,39 @@ export class RespondRfqDto {
 export class UpdateRfqDto {
   @IsOptional()
   @IsString()
-  status?: string;
+  @MinLength(3)
+  title?: string;
 
   @IsOptional()
   @IsString()
-  dealStatus?: string;
+  quantity?: string;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @IsOptional()
+  @IsString()
+  budgetHint?: string;
+
+  @IsOptional()
+  @IsString()
+  details?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  targetProvinces?: string[];
+
+  @IsOptional()
+  @IsString()
+  deadline?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }

@@ -14,8 +14,14 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { MessagesService } from './messages.service';
 
 class StartConversationDto {
+  @IsOptional()
   @IsString()
-  otherCompanyId: string;
+  otherCompanyId?: string;
+
+  // Alias accepté par l'app mobile (Contacter depuis une entreprise).
+  @IsOptional()
+  @IsString()
+  companyId?: string;
 
   @IsOptional()
   @IsString()
@@ -24,6 +30,11 @@ class StartConversationDto {
   @IsOptional()
   @IsString()
   rfqId?: string;
+
+  // Premier message optionnel envoyé à la création de la conversation.
+  @IsOptional()
+  @IsString()
+  message?: string;
 }
 
 class PostMessageDto {
@@ -45,16 +56,16 @@ export class MessagesController {
 
   @Post()
   start(
-    @CurrentUser() user: { companyId: string | null },
+    @CurrentUser() user: { companyId: string | null; userId: string },
     @Body() dto: StartConversationDto,
   ) {
     if (!user.companyId) throw new BadRequestException('Entreprise requise');
-    return this.messages.start(
-      user.companyId,
-      dto.otherCompanyId,
-      dto.productId,
-      dto.rfqId,
-    );
+    return this.messages.start(user.companyId, user.userId, {
+      otherCompanyId: dto.otherCompanyId ?? dto.companyId,
+      productId: dto.productId,
+      rfqId: dto.rfqId,
+      message: dto.message,
+    });
   }
 
   @Get(':id')

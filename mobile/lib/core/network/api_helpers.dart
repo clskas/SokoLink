@@ -81,6 +81,10 @@ String apiError(Object error) {
         ? error.response?.data['message']
         : null;
     if (message is String && message.isNotEmpty) return message;
+    // class-validator renvoie parfois une liste de messages.
+    if (message is List && message.isNotEmpty) {
+      return message.map((e) => e.toString()).join('\n');
+    }
   }
   return 'Une erreur est survenue. Réessayez.';
 }

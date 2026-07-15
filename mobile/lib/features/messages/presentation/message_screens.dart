@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sokolink/core/network/api_helpers.dart';
+import 'package:sokolink/features/auth/application/auth_controller.dart';
 
 class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
@@ -30,22 +31,30 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,
       builder: (_, s) {
-        if (s.connectionState != ConnectionState.done)
+        if (s.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
+        }
         if (s.hasError) return Center(child: Text(apiError(s.error!)));
         final items = s.data ?? [];
-        if (items.isEmpty)
+        if (items.isEmpty) {
           return const Center(
             child: Text(
               'Aucune conversation.\nContactez une entreprise depuis la recherche.',
               textAlign: TextAlign.center,
             ),
           );
+        }
         return ListView.builder(
           itemCount: items.length,
           itemBuilder: (_, i) {
             final x = items[i];
-            final other = x['company'] is Map ? x['company'] : x['participant'];
+            final other = x['company'] is Map
+                ? x['company']
+                : (x['otherCompany'] is Map ? x['otherCompany'] : x['participant']);
+            final last = x['lastMessage'];
+            final lastText = last is Map
+                ? last['body']?.toString()
+                : last?.toString();
             return ListTile(
               leading: const CircleAvatar(child: Icon(Icons.business)),
               title: Text(
@@ -54,7 +63,9 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                     : x['title']?.toString() ?? 'Conversation',
               ),
               subtitle: Text(
-                x['lastMessage']?.toString() ?? 'Ouvrir la conversation',
+                lastText?.isNotEmpty == true
+                    ? lastText!
+                    : 'Ouvrir la conversation',
               ),
               onTap: () => context.push('/messages/${x['id']}'),
             );
@@ -96,13 +107,15 @@ class _ConversationThreadScreenState
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
     future: _future,
     builder: (_, s) {
-      if (s.connectionState != ConnectionState.done)
+      if (s.connectionState != ConnectionState.done) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      if (s.hasError)
+      }
+      if (s.hasError) {
         return Scaffold(
           appBar: AppBar(),
           body: Center(child: Text(apiError(s.error!))),
         );
+      }
       final conversation = s.data ?? {};
       final messages = conversation['messages'] is List
           ? List<Map<String, dynamic>>.from(conversation['messages'])
@@ -147,7 +160,8 @@ class _ConversationThreadScreenState
                       child: Padding(
                         padding: const EdgeInsets.all(10),
                         child: Text(
-                          m['content']?.toString() ??
+                          m['body']?.toString() ??
+                              m['content']?.toString() ??
                               m['message']?.toString() ??
                               '',
                         ),
@@ -191,15 +205,16 @@ class _ConversationThreadScreenState
     try {
       await ref.read(marketplaceApiProvider).post(
         '/conversations/${widget.id}/messages',
-        {'content': _text.text.trim()},
+        {'body': _text.text.trim()},
       );
       _text.clear();
       setState(() => _future = _load());
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -209,10 +224,12 @@ class _ConversationThreadScreenState
     final uri = Uri.parse(
       'https://wa.me/${phone.replaceAll(RegExp(r'[^0-9]'), '')}',
     );
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted)
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('WhatsApp n’est pas disponible.')),
       );
+    }
   }
 }
 
@@ -226,50 +243,176 @@ class NewConversationScreen extends ConsumerStatefulWidget {
 
 class _NewConversationScreenState extends ConsumerState<NewConversationScreen> {
   final _message = TextEditingController();
+  final _search = TextEditingController();
   bool _sending = false;
+  String? _pickedCompanyId;
+  String? _pickedCompanyName;
+  List<Map<String, dynamic>> _companies = [];
+  bool _loadingCompanies = false;
+
+  bool get _needsRecipient =>
+      widget.companyId == null && widget.productId == null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_needsRecipient) _loadCompanies();
+  }
+
   @override
   void dispose() {
     _message.dispose();
+    _search.dispose();
     super.dispose();
   }
+
+  Future<void> _loadCompanies([String? q]) async {
+    setState(() => _loadingCompanies = true);
+    try {
+      final myId = ref.read(authControllerProvider).user?.companyId;
+      final rows = await ref
+          .read(marketplaceApiProvider)
+          .list('/companies', query: {'q': q});
+      if (!mounted) return;
+      setState(() {
+        _companies = rows.where((c) => c['id'] != myId).toList();
+        _loadingCompanies = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingCompanies = false);
+    }
+  }
+
+  bool get _recipientChosen =>
+      widget.companyId != null ||
+      widget.productId != null ||
+      _pickedCompanyId != null;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Nouveau message')),
-    body: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          TextField(
-            controller: _message,
-            minLines: 4,
-            maxLines: 7,
-            decoration: const InputDecoration(labelText: 'Message'),
+    body: _recipientChosen ? _composer() : _picker(),
+  );
+
+  Widget _picker() => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: TextField(
+          controller: _search,
+          decoration: InputDecoration(
+            labelText: 'Rechercher une entreprise',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.arrow_forward),
+              onPressed: () => _loadCompanies(_search.text.trim()),
+            ),
           ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _sending ? null : _create,
-            child: const Text('Envoyer'),
-          ),
-        ],
+          onSubmitted: (v) => _loadCompanies(v.trim()),
+        ),
       ),
+      if (_loadingCompanies)
+        const Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      Expanded(
+        child: _companies.isEmpty && !_loadingCompanies
+            ? const Center(child: Text('Aucune entreprise trouvée.'))
+            : ListView.builder(
+                itemCount: _companies.length,
+                itemBuilder: (_, i) {
+                  final c = _companies[i];
+                  final roles = c['roles'] is List
+                      ? (c['roles'] as List).join(' · ')
+                      : '';
+                  return ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.business)),
+                    title: Text(c['name']?.toString() ?? 'Entreprise'),
+                    subtitle: Text(
+                      [c['province'], roles]
+                          .whereType<Object>()
+                          .where((e) => e.toString().isNotEmpty)
+                          .join(' — '),
+                    ),
+                    trailing: c['isVerified'] == true
+                        ? const Icon(Icons.verified,
+                            size: 18, color: Colors.green)
+                        : null,
+                    onTap: () => setState(() {
+                      _pickedCompanyId = c['id']?.toString();
+                      _pickedCompanyName = c['name']?.toString();
+                    }),
+                  );
+                },
+              ),
+      ),
+    ],
+  );
+
+  Widget _composer() => Padding(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_pickedCompanyName != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.business),
+              title: Text(_pickedCompanyName!),
+              trailing: TextButton(
+                onPressed: () => setState(() {
+                  _pickedCompanyId = null;
+                  _pickedCompanyName = null;
+                }),
+                child: const Text('Changer'),
+              ),
+            ),
+          ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _message,
+          minLines: 4,
+          maxLines: 7,
+          decoration: const InputDecoration(labelText: 'Message'),
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: _sending ? null : _create,
+          child: const Text('Envoyer'),
+        ),
+      ],
     ),
   );
+
   Future<void> _create() async {
-    if (_message.text.trim().isEmpty) return;
+    if (_message.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Écrivez un message.')),
+      );
+      return;
+    }
+    final target = widget.companyId ?? _pickedCompanyId;
+    if (target == null && widget.productId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choisissez un destinataire.')),
+      );
+      return;
+    }
     setState(() => _sending = true);
     try {
       final r = await ref.read(marketplaceApiProvider).post('/conversations', {
         'message': _message.text.trim(),
-        if (widget.companyId != null) 'companyId': widget.companyId,
+        if (target != null) 'companyId': target,
         if (widget.productId != null) 'productId': widget.productId,
       });
       if (mounted) context.go('/messages/${r['id']}');
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }

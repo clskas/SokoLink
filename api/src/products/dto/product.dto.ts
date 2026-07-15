@@ -30,7 +30,9 @@ export class CreateProductDto {
   unit?: string;
 
   @IsOptional()
-  @Transform(({ value, obj }) => value ?? obj.price)
+  @Transform(({ value, obj }) =>
+    value ?? (obj.price != null ? String(obj.price) : undefined),
+  )
   @IsString()
   indicativePrice?: string;
 
@@ -56,6 +58,18 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto {
+  @IsOptional()
+  @IsEnum(ProductType)
+  type?: ProductType;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
   @IsOptional()
   @IsString()
   @MinLength(2)

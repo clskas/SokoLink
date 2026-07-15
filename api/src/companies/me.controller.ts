@@ -2,7 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
+  ForbiddenException,
   Get,
+  NotFoundException,
+  Param,
   Patch,
   Post,
   UploadedFile,
@@ -10,17 +14,33 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { DocumentType } from '@prisma/client';
+import { CompanyRole, DocumentType } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveCompanyGuard } from '../auth/active-company.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
 class UpdateCompanyDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  province?: string;
+
   @IsOptional()
   @IsString()
   description?: string;
@@ -36,11 +56,13 @@ class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   phone?: string;
-}
 
-class DocTypeDto {
-  @IsEnum(DocumentType)
-  type: DocumentType;
+  // Rôles métier de l'entreprise (au moins un requis si fourni).
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(CompanyRole, { each: true })
+  roles?: CompanyRole[];
 }
 
 const uploadRoot = join(process.cwd(), 'uploads');
@@ -66,9 +88,13 @@ export class MeController {
     @Body() dto: UpdateCompanyDto,
   ) {
     if (!user.companyId) throw new BadRequestException('Entreprise requise');
+    const { roles, ...rest } = dto;
     return this.prisma.company.update({
       where: { id: user.companyId },
-      data: dto,
+      data: {
+        ...rest,
+        ...(roles ? { roles: { set: roles } } : {}),
+      },
     });
   }
 
@@ -117,5 +143,18 @@ export class MeController {
         rejectReason: null,
       },
     });
+  }
+
+  @Delete('company/documents/:id')
+  async deleteDoc(
+    @CurrentUser() user: { companyId: string | null },
+    @Param('id') id: string,
+  ) {
+    if (!user.companyId) throw new BadRequestException('Entreprise requise');
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Document introuvable');
+    if (doc.companyId !== user.companyId) throw new ForbiddenException();
+    await this.prisma.document.delete({ where: { id } });
+    return { ok: true };
   }
 }

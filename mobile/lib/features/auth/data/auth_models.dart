@@ -54,6 +54,19 @@ class AuthUser {
   bool get isPro => plan == 'PRO';
   bool get isAdmin => platformRole == 'ADMIN';
 
+  bool get isVerified => company?['isVerified'] == true;
+  int get leadCredits {
+    final raw = company?['leadCredits'];
+    if (raw is int) return raw;
+    return int.tryParse(raw?.toString() ?? '') ?? 0;
+  }
+
+  DateTime? get planRenewsAt {
+    final raw = company?['planRenewsAt'];
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
+  }
+
   bool get canSellMp => companyRoles.contains('SUPPLIER_MP');
   bool get canSellFinished => companyRoles.contains('PROCESSOR');
   bool get canManageCatalog => canSellMp || canSellFinished;

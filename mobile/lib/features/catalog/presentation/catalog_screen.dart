@@ -78,7 +78,22 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ? Icons.agriculture_outlined
                           : Icons.inventory_2_outlined,
                     ),
-                    title: Text(product['name']?.toString() ?? 'Produit'),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(product['name']?.toString() ?? 'Produit'),
+                        ),
+                        if (product['isFeatured'] == true)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6),
+                            child: Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: Icon(Icons.bolt, size: 16),
+                              label: Text('Boosté'),
+                            ),
+                          ),
+                      ],
+                    ),
                     subtitle: Text(
                       [
                         typeLabel,
@@ -97,12 +112,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       onSelected: (v) {
                         if (v == 'edit') {
                           _edit(product);
+                        } else if (v == 'boost') {
+                          _boost(product);
                         } else {
                           _archive(product);
                         }
                       },
                       itemBuilder: (_) => const [
                         PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                        PopupMenuItem(
+                          value: 'boost',
+                          child: Text('Booster (7 jours)'),
+                        ),
                         PopupMenuItem(
                           value: 'archive',
                           child: Text('Archiver'),
@@ -157,6 +178,51 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       MaterialPageRoute(builder: (_) => ProductFormScreen(product: product)),
     );
     if (saved == true) _reload();
+  }
+
+  Future<void> _boost(Map<String, dynamic> product) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Booster ce produit ?'),
+        content: const Text(
+          'Le produit sera mis en avant en tête de sa catégorie pendant 7 jours '
+          'après validation de votre paiement mobile money.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Demander le boost'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(marketplaceApiProvider).post('/billing/payments', {
+        'planCode': 'BOOST_WEEK',
+        'productId': product['id'],
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Demande de boost envoyée. En attente de validation du paiement.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiError(e))),
+        );
+      }
+    }
   }
 }
 

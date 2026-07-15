@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -57,6 +58,17 @@ export class RfqsController {
   }
 
   @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.SUPPLIER_MP, CompanyRole.PROCESSOR)
+  @Delete(':id/responses')
+  withdraw(
+    @CurrentUser() user: { companyId: string | null },
+    @Param('id') id: string,
+  ) {
+    if (!user.companyId) throw new BadRequestException('Entreprise requise');
+    return this.rfqs.removeResponse(user.companyId, id);
+  }
+
+  @UseGuards(CompanyRolesGuard)
   @RequireCompanyRoles(CompanyRole.BUYER)
   @Patch(':id')
   update(
@@ -65,7 +77,18 @@ export class RfqsController {
     @Body() dto: UpdateRfqDto,
   ) {
     if (!user.companyId) throw new BadRequestException('Entreprise requise');
-    return this.rfqs.updateStatus(user.companyId, id, dto.status);
+    return this.rfqs.edit(user.companyId, id, dto);
+  }
+
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.BUYER)
+  @Delete(':id')
+  remove(
+    @CurrentUser() user: { companyId: string | null },
+    @Param('id') id: string,
+  ) {
+    if (!user.companyId) throw new BadRequestException('Entreprise requise');
+    return this.rfqs.remove(user.companyId, id);
   }
 
   @UseGuards(CompanyRolesGuard)

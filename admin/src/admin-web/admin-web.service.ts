@@ -75,4 +75,66 @@ export class AdminWebService {
     );
     return data;
   }
+
+  async setRoles(token: string, id: string, roles: string[]) {
+    const { data } = await this.http.patch(
+      `/admin/companies/${id}/roles`,
+      { roles },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data;
+  }
+
+  async revenue(token: string) {
+    const { data } = await this.http.get('/admin/revenue', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data;
+  }
+
+  async payments(token: string, status?: string) {
+    const { data } = await this.http.get('/admin/payments', {
+      params: status ? { status } : undefined,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data;
+  }
+
+  async confirmPayment(token: string, id: string) {
+    const { data } = await this.http.post(
+      `/admin/payments/${id}/confirm`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data;
+  }
+
+  async rejectPayment(token: string, id: string) {
+    const { data } = await this.http.post(
+      `/admin/payments/${id}/reject`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data;
+  }
+
+  async recordPayment(token: string, body: Record<string, unknown>) {
+    const { data } = await this.http.post('/admin/payments', body, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data;
+  }
+
+  async updateSubscription(
+    token: string,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    const { data } = await this.http.post(
+      `/admin/companies/${id}/subscription`,
+      body,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data;
+  }
 }

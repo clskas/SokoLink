@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{title}}</title>
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231b6b4a'/><text x='50' y='70' font-size='62' text-anchor='middle' fill='white' font-family='Georgia'>S</text></svg>" />
   <style>
     :root { --bg:#f3ede4; --ink:#1a1f1c; --green:#1b6b4a; --white:#fff; --clay:#c45c26; }
     body { font-family: system-ui,sans-serif; background: var(--bg); color: var(--ink); margin:0; }
@@ -19,8 +19,25 @@
     table { width:100%; border-collapse:collapse; font-size:14px; }
     th, td { text-align:left; padding:8px; border-bottom:1px solid #eee; }
     form.inline { display:inline; }
+    form.roles { display:flex; flex-direction:column; gap:2px; font-size:12px; }
+    form.roles label { white-space:nowrap; }
+    form.roles button { margin-top:4px; align-self:flex-start; padding:4px 8px; }
+    form.sub { display:flex; flex-wrap:wrap; gap:4px; align-items:center; font-size:12px; margin-top:4px; }
+    form.sub input { width:52px; padding:3px; border:1px solid #ccc; border-radius:4px; }
+    form.sub button { padding:3px 8px; }
     button { background:var(--green); color:#fff; border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
     button.danger { background:var(--clay); }
+    button.muted { background:#6b7280; }
+    .stat.money strong { color:var(--clay); font-size:24px; }
+    .badge { display:inline-block; font-size:11px; padding:2px 6px; border-radius:10px; background:#e5efe9; color:var(--green); }
+    .badge.warn { background:#fdecdd; color:var(--clay); }
+    h2 .count { font-size:13px; color:#888; font-weight:normal; }
+    .grid2 { display:grid; grid-template-columns:2fr 1fr; gap:16px; align-items:start; }
+    @media (max-width:800px){ .grid2 { grid-template-columns:1fr; } }
+    fieldset { border:1px solid #e3ddd3; border-radius:8px; }
+    fieldset legend { color:var(--green); font-weight:600; }
+    label.field { display:block; font-size:12px; margin:6px 0 2px; }
+    input.full, select.full { width:100%; padding:6px; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
   </style>
 </head>
 <body>
@@ -40,7 +57,93 @@
       <div class="stat"><strong>{{stats.rfqs}}</strong>RFQ</div>
       <div class="stat"><strong>{{stats.pendingDocs}}</strong>Docs en revue</div>
       <div class="stat"><strong>{{stats.pendingPro}}</strong>Demandes Pro</div>
+      <div class="stat"><strong>{{stats.pendingPay}}</strong>Paiements en attente</div>
     </div>
+
+    <h2>Revenus &amp; abonnements</h2>
+    <div class="stats">
+      <div class="stat money"><strong>{{revenue.totalLabel}}</strong>Revenu total</div>
+      <div class="stat money"><strong>{{revenue.monthLabel}}</strong>Ce mois-ci</div>
+      <div class="stat money"><strong>{{revenue.mrrLabel}}</strong>MRR estimé</div>
+      <div class="stat"><strong>{{revenue.activePro}}</strong>Abonnés PRO actifs</div>
+      <div class="stat"><strong>{{revenue.verifiedCount}}</strong>Entreprises vérifiées</div>
+      <div class="stat"><strong>{{revenue.expiringSoon}}</strong>Expirent sous 7 j</div>
+    </div>
+
+    <div class="grid2">
+      <section>
+        <h2>Paiements à valider <span class="count">({{pendingPayments.length}})</span></h2>
+        <table>
+          <tr><th>Entreprise</th><th>Objet</th><th>Montant</th><th>Méthode</th><th>Réf.</th><th>Preuve</th><th>Date</th><th>Actions</th></tr>
+          {{#each pendingPayments}}
+          <tr>
+            <td>{{companyName}}</td>
+            <td>{{purposeLabel}}</td>
+            <td>{{amountLabel}}</td>
+            <td>{{method}}{{#if provider}} · {{provider}}{{/if}}</td>
+            <td>{{reference}}</td>
+            <td>{{#if proofUrl}}<a href="{{proofUrl}}" target="_blank" rel="noreferrer">Voir</a>{{else}}—{{/if}}</td>
+            <td>{{createdLabel}}</td>
+            <td>
+              <form class="inline" method="post" action="/payments/{{id}}/confirm"><button type="submit">Valider</button></form>
+              <form class="inline" method="post" action="/payments/{{id}}/reject"><button class="danger" type="submit">Rejeter</button></form>
+            </td>
+          </tr>
+          {{/each}}
+        </table>
+      </section>
+
+      <section>
+        <h2>Enregistrer un paiement</h2>
+        <form method="post" action="/payments">
+          <label class="field">Entreprise</label>
+          <select class="full" name="companyId" required>
+            {{#each companies}}<option value="{{id}}">{{name}}</option>{{/each}}
+          </select>
+          <label class="field">Objet</label>
+          <select class="full" name="purpose" required>
+            <option value="SUBSCRIPTION">Abonnement PRO</option>
+            <option value="BOOST">Boost produit</option>
+            <option value="VERIFICATION">Badge Vérifié</option>
+            <option value="LEAD">Crédits mise en relation</option>
+          </select>
+          <label class="field">Montant</label>
+          <input class="full" type="number" name="amount" step="0.01" required />
+          <label class="field">Méthode</label>
+          <select class="full" name="method">
+            <option value="MOBILE_MONEY">Mobile Money</option>
+            <option value="CASH">Cash</option>
+            <option value="BANK">Banque</option>
+            <option value="CARD">Carte</option>
+          </select>
+          <label class="field">Durée en mois (abonnement / vérif.)</label>
+          <input class="full" type="number" name="periodMonths" placeholder="1" />
+          <label class="field">Quantité (crédits LEAD ou jours BOOST)</label>
+          <input class="full" type="number" name="quantity" />
+          <label class="field">Produit ID (pour un boost)</label>
+          <input class="full" type="text" name="productId" placeholder="facultatif" />
+          <label class="field">Référence transaction</label>
+          <input class="full" type="text" name="reference" placeholder="facultatif" />
+          <div style="margin-top:10px"><button type="submit">Enregistrer &amp; valider</button></div>
+        </form>
+      </section>
+    </div>
+
+    <section>
+      <h2>Derniers paiements</h2>
+      <table>
+        <tr><th>Entreprise</th><th>Objet</th><th>Montant</th><th>Statut</th><th>Date</th></tr>
+        {{#each recentPayments}}
+        <tr>
+          <td>{{companyName}}</td>
+          <td>{{purposeLabel}}</td>
+          <td>{{amountLabel}}</td>
+          <td>{{#if isPending}}<span class="badge warn">En attente</span>{{else}}<span class="badge">{{status}}</span>{{/if}}</td>
+          <td>{{createdLabel}}</td>
+        </tr>
+        {{/each}}
+      </table>
+    </section>
 
     <section>
       <h2>Documents à valider</h2>
@@ -76,17 +179,52 @@
     <section>
       <h2>Entreprises</h2>
       <table>
-        <tr><th>Nom</th><th>Province</th><th>Plan</th><th>Statut</th><th></th></tr>
+        <tr><th>Nom</th><th>Province</th><th>Abonnement</th><th>Rôles</th><th>Actions</th></tr>
         {{#each companies}}
         <tr>
-          <td>{{name}}</td>
+          <td>{{name}}{{#if isSuspended}}<br /><span class="badge warn">Suspendu</span>{{/if}}</td>
           <td>{{province}}</td>
-          <td>{{plan}}</td>
-          <td>{{#if isSuspended}}Suspendu{{else}}Actif{{/if}}</td>
           <td>
-            {{#unless isSuspended}}
-            <form method="post" action="/companies/{{id}}/suspend"><button class="danger" type="submit">Suspendre</button></form>
-            {{/unless}}
+            {{#if isPro}}<span class="badge">PRO</span> → {{renewsAt}}{{else}}<span class="badge warn">FREE</span>{{/if}}
+            {{#if isVerified}} · <span class="badge">Vérifié</span>{{/if}}
+            <div style="font-size:12px;color:#666;margin-top:2px">Crédits mise en relation : {{leadCredits}}</div>
+            <form class="sub" method="post" action="/companies/{{id}}/subscription">
+              <input type="hidden" name="action" value="extend" />
+              <input type="number" name="months" value="1" /> <button type="submit">+ mois PRO</button>
+            </form>
+            <form class="sub" method="post" action="/companies/{{id}}/subscription">
+              <input type="hidden" name="action" value="verify" />
+              <input type="number" name="months" value="12" /> <button type="submit">Vérifier</button>
+            </form>
+            {{#if isVerified}}
+            <form class="sub" method="post" action="/companies/{{id}}/subscription">
+              <input type="hidden" name="action" value="unverify" />
+              <button class="muted" type="submit">Retirer badge</button>
+            </form>
+            {{/if}}
+            <form class="sub" method="post" action="/companies/{{id}}/subscription">
+              <input type="hidden" name="action" value="credits" />
+              <input type="number" name="credits" value="10" /> <button type="submit">+ crédits</button>
+            </form>
+            <form class="sub" method="post" action="/companies/{{id}}/subscription">
+              <input type="hidden" name="action" value="downgrade" />
+              <button class="muted" type="submit">Rétrograder</button>
+            </form>
+          </td>
+          <td>
+            <form class="roles" method="post" action="/companies/{{id}}/roles">
+              <label><input type="checkbox" name="roles" value="SUPPLIER_MP" {{#if hasMp}}checked{{/if}} /> Fournisseur MP</label>
+              <label><input type="checkbox" name="roles" value="PROCESSOR" {{#if hasProcessor}}checked{{/if}} /> Transformateur</label>
+              <label><input type="checkbox" name="roles" value="BUYER" {{#if hasBuyer}}checked{{/if}} /> Acheteur</label>
+              <button type="submit">Enregistrer</button>
+            </form>
+          </td>
+          <td>
+            {{#if isSuspended}}
+            <form class="inline" method="post" action="/companies/{{id}}/reactivate"><button type="submit">Réactiver</button></form>
+            {{else}}
+            <form class="inline" method="post" action="/companies/{{id}}/suspend"><button class="danger" type="submit">Suspendre</button></form>
+            {{/if}}
           </td>
         </tr>
         {{/each}}

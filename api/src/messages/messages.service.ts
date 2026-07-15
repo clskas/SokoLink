@@ -32,9 +32,11 @@ export class MessagesService {
 
     return rows.map((c) => {
       const otherId = c.companyAId === companyId ? c.companyBId : c.companyAId;
+      const other = map[otherId] ?? null;
       return {
         ...c,
-        otherCompany: map[otherId] ?? null,
+        otherCompany: other,
+        company: other,
         lastMessage: c.messages[0] ?? null,
       };
     });
@@ -42,33 +44,75 @@ export class MessagesService {
 
   async start(
     companyId: string,
-    otherCompanyId: string,
-    productId?: string,
-    rfqId?: string,
+    userId: string,
+    input: {
+      otherCompanyId?: string;
+      productId?: string;
+      rfqId?: string;
+      message?: string;
+    },
   ) {
-    if (companyId === otherCompanyId) {
-      throw new BadRequestException('Conversation invalide');
+    // Le destinataire peut être fourni directement, ou déduit du produit / RFQ
+    // (ex. « Contacter » depuis une fiche produit qui ne connaît pas l'entreprise).
+    let targetId = input.otherCompanyId;
+    if (!targetId && input.productId) {
+      const product = await this.prisma.product.findUnique({
+        where: { id: input.productId },
+        select: { companyId: true },
+      });
+      targetId = product?.companyId;
     }
-    const existing = await this.prisma.conversation.findFirst({
+    if (!targetId && input.rfqId) {
+      const rfq = await this.prisma.rfq.findUnique({
+        where: { id: input.rfqId },
+        select: { issuerCompanyId: true },
+      });
+      targetId = rfq?.issuerCompanyId;
+    }
+    if (!targetId) {
+      throw new BadRequestException('Destinataire introuvable');
+    }
+    if (companyId === targetId) {
+      throw new BadRequestException(
+        'Vous ne pouvez pas démarrer une conversation avec votre propre entreprise',
+      );
+    }
+
+    let conversation = await this.prisma.conversation.findFirst({
       where: {
         OR: [
-          { companyAId: companyId, companyBId: otherCompanyId },
-          { companyAId: otherCompanyId, companyBId: companyId },
+          { companyAId: companyId, companyBId: targetId },
+          { companyAId: targetId, companyBId: companyId },
         ],
-        productId: productId ?? null,
-        rfqId: rfqId ?? null,
+        productId: input.productId ?? null,
+        rfqId: input.rfqId ?? null,
       },
     });
-    if (existing) return existing;
-
-    return this.prisma.conversation.create({
+    conversation ??= await this.prisma.conversation.create({
       data: {
         companyAId: companyId,
-        companyBId: otherCompanyId,
-        productId,
-        rfqId,
+        companyBId: targetId,
+        productId: input.productId,
+        rfqId: input.rfqId,
       },
     });
+
+    const firstMessage = input.message?.trim();
+    if (firstMessage) {
+      await this.prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderUserId: userId,
+          body: firstMessage,
+        },
+      });
+      await this.prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    return this.get(companyId, conversation.id);
   }
 
   async get(companyId: string, id: string) {
@@ -85,7 +129,31 @@ export class MessagesService {
     ) {
       throw new ForbiddenException();
     }
-    return conversation;
+
+    const otherId =
+      conversation.companyAId === companyId
+        ? conversation.companyBId
+        : conversation.companyAId;
+    const otherCompany = await this.prisma.company.findUnique({
+      where: { id: otherId },
+      select: { id: true, name: true, phone: true, whatsapp: true },
+    });
+
+    const myUsers = await this.prisma.user.findMany({
+      where: { companyId },
+      select: { id: true },
+    });
+    const myUserIds = new Set(myUsers.map((u) => u.id));
+
+    return {
+      ...conversation,
+      otherCompany,
+      company: otherCompany,
+      messages: conversation.messages.map((m) => ({
+        ...m,
+        isMine: myUserIds.has(m.senderUserId),
+      })),
+    };
   }
 
   async postMessage(
