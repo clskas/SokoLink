@@ -131,18 +131,14 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
 
   Future<void> _submit() async {
     setState(() => _loading = true);
-    final result = await ref
+    await ref
         .read(authControllerProvider.notifier)
         .verifyOtp(code: _code.text.trim());
     if (!mounted) return;
     setState(() => _loading = false);
-    if (result == 'needs_profile') {
-      context.push('/otp/profile');
-    } else if (result == 'needs_pin_setup') {
-      context.go('/pin/setup');
-    } else if (result == 'needs_pin_unlock') {
-      context.go('/pin/unlock');
-    }
+    // La navigation est pilotée par le `redirect` de go_router (réagit au
+    // changement de statut via `refreshListenable`). Naviguer ici en plus
+    // provoquait une double navigation -> GlobalKey dupliquée (crash Navigator).
   }
 
   @override
@@ -281,7 +277,7 @@ class _OtpProfileScreenState extends ConsumerState<OtpProfileScreen> {
       return;
     }
     setState(() => _loading = true);
-    final result = await ref.read(authControllerProvider.notifier).verifyOtp(
+    await ref.read(authControllerProvider.notifier).verifyOtp(
           code: _code.text.trim(),
           fullName: _name.text.trim(),
           companyName: _company.text.trim(),
@@ -290,8 +286,7 @@ class _OtpProfileScreenState extends ConsumerState<OtpProfileScreen> {
         );
     if (!mounted) return;
     setState(() => _loading = false);
-    if (result == 'needs_pin_setup') context.go('/pin/setup');
-    if (result == 'needs_pin_unlock') context.go('/pin/unlock');
+    // Navigation gérée par le `redirect` de go_router (voir OtpVerifyScreen).
   }
 
   @override
@@ -411,11 +406,10 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
       return;
     }
     setState(() => _loading = true);
-    final ok =
-        await ref.read(authControllerProvider.notifier).setupPin(_pin.text);
+    await ref.read(authControllerProvider.notifier).setupPin(_pin.text);
     if (!mounted) return;
     setState(() => _loading = false);
-    if (ok) context.go('/home');
+    // Passage à l'état authenticated -> redirect go_router vers /home.
   }
 
   @override
@@ -485,12 +479,10 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen> {
 
   Future<void> _submit() async {
     setState(() => _loading = true);
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .unlockWithPin(_pin.text);
+    await ref.read(authControllerProvider.notifier).unlockWithPin(_pin.text);
     if (!mounted) return;
     setState(() => _loading = false);
-    if (ok) context.go('/home');
+    // Passage à l'état authenticated -> redirect go_router vers /home.
   }
 
   @override
@@ -538,10 +530,8 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen> {
               child: Text(_loading ? '…' : 'Déverrouiller'),
             ),
             TextButton(
-              onPressed: () async {
-                await ref.read(authControllerProvider.notifier).logout();
-                if (context.mounted) context.go('/login');
-              },
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).logout(),
               child: const Text('Se déconnecter / nouvel OTP'),
             ),
           ],

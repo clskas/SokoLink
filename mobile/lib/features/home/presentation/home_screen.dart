@@ -42,10 +42,8 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Déconnexion',
-            onPressed: () async {
-              await ref.read(authControllerProvider.notifier).logout();
-              if (context.mounted) context.go('/login');
-            },
+            onPressed: () =>
+                ref.read(authControllerProvider.notifier).logout(),
             icon: const Icon(Icons.logout),
           ),
         ],

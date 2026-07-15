@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,19 +78,37 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     ref.invalidate(unreadNotificationsProvider);
   }
 
-  Future<void> _open(Map<String, dynamic> n) async {
+  // Routes appartenant au StatefulShellRoute (onglets) : on doit `go` et non
+  // `push` pour ne pas dupliquer le navigateur de branche du shell.
+  static const _tabRoutes = {
+    '/home',
+    '/search',
+    '/rfqs',
+    '/messages',
+    '/profile',
+  };
+
+  void _open(Map<String, dynamic> n) {
     final id = n['id']?.toString();
+    // Marquage lu optimiste + appel réseau en arrière-plan. On n'invalide PAS
+    // le provider du badge ici : cela reconstruirait l'accueil (dans le shell)
+    // pendant la navigation, ce qui provoquait une GlobalKey dupliquée (crash
+    // Navigator). Le badge se rafraîchit via le polling (20 s).
     if (id != null && n['isRead'] != true) {
-      try {
-        await ref.read(marketplaceApiProvider).patch('/notifications/$id/read');
-      } catch (_) {}
-      ref.invalidate(unreadNotificationsProvider);
+      setState(() => n['isRead'] = true);
+      unawaited(
+        ref
+            .read(marketplaceApiProvider)
+            .patch('/notifications/$id/read')
+            .catchError((_) => <String, dynamic>{}),
+      );
     }
     final link = n['link']?.toString();
-    if (link != null && link.isNotEmpty && mounted) {
-      context.push(link);
+    if (link == null || link.isEmpty) return;
+    if (_tabRoutes.contains(link)) {
+      context.go(link);
     } else {
-      _reload();
+      context.push(link);
     }
   }
 
