@@ -21,6 +21,16 @@ String rfqStatusLabel(dynamic status) {
   }
 }
 
+const Map<String, String> dealStatusLabels = {
+  'NONE': 'Aucun',
+  'IN_DISCUSSION': 'En discussion',
+  'CLOSED_WON': 'Affaire conclue',
+  'CLOSED_LOST': 'Affaire perdue',
+};
+
+String dealStatusLabel(dynamic status) =>
+    dealStatusLabels[(status ?? '').toString().toUpperCase()] ?? 'Aucun';
+
 bool _isOffline(Object e) {
   if (e is DioException) {
     return e.type == DioExceptionType.connectionError ||
@@ -398,10 +408,17 @@ class _RfqDetailScreenState extends ConsumerState<RfqDetailScreen> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 4),
-              Row(
+              Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Chip(label: Text(rfqStatusLabel(status))),
-                  const SizedBox(width: 8),
+                  if ((r['dealStatus'] ?? 'NONE').toString().toUpperCase() !=
+                      'NONE')
+                    Chip(
+                      avatar: const Icon(Icons.handshake_outlined, size: 16),
+                      label: Text(dealStatusLabel(r['dealStatus'])),
+                    ),
                   if (r['quantity'] != null)
                     Text('${r['quantity']} ${r['unit'] ?? ''}'),
                 ],
@@ -466,6 +483,16 @@ class _RfqDetailScreenState extends ConsumerState<RfqDetailScreen> {
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Retirer ma réponse'),
                 ),
+              if (isIssuer) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _setDealStatus(r),
+                  icon: const Icon(Icons.handshake_outlined),
+                  label: Text(
+                    'Statut de l’affaire : ${dealStatusLabel(r['dealStatus'])}',
+                  ),
+                ),
+              ],
               if (isIssuer && isOpen)
                 TextButton(
                   onPressed: _close,
@@ -476,6 +503,52 @@ class _RfqDetailScreenState extends ConsumerState<RfqDetailScreen> {
         );
       },
     );
+  }
+
+  Future<void> _setDealStatus(Map<String, dynamic> r) async {
+    final current = (r['dealStatus'] ?? 'NONE').toString().toUpperCase();
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Statut de l’affaire',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+            ),
+            for (final e in dealStatusLabels.entries)
+              ListTile(
+                leading: Icon(
+                  e.key == current
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
+                title: Text(e.value),
+                onTap: () => Navigator.pop(c, e.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || choice == current) return;
+    try {
+      await ref
+          .read(marketplaceApiProvider)
+          .patch('/rfqs/${widget.id}/deal-status', {'dealStatus': choice});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Statut mis à jour : ${dealStatusLabel(choice)}')),
+      );
+      setState(() => _future = _load());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(apiError(e))));
+    }
   }
 
   Future<void> _respond({Map<String, dynamic>? prefill}) async {

@@ -5,10 +5,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  private async companyName(companyId: string) {
+    const c = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+    return c?.name ?? 'Une entreprise';
+  }
 
   async list(companyId: string) {
     const rows = await this.prisma.conversation.findMany({
@@ -110,6 +122,12 @@ export class MessagesService {
         where: { id: conversation.id },
         data: { updatedAt: new Date() },
       });
+      await this.notifications.notify(targetId, {
+        type: 'MESSAGE',
+        title: 'Nouveau message',
+        body: `${await this.companyName(companyId)} vous a envoyé un message.`,
+        link: `/messages/${conversation.id}`,
+      });
     }
 
     return this.get(companyId, conversation.id);
@@ -162,7 +180,7 @@ export class MessagesService {
     conversationId: string,
     body: string,
   ) {
-    await this.get(companyId, conversationId);
+    const convo = await this.get(companyId, conversationId);
     const message = await this.prisma.message.create({
       data: {
         conversationId,
@@ -173,6 +191,12 @@ export class MessagesService {
     await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() },
+    });
+    await this.notifications.notify(convo.otherCompany?.id, {
+      type: 'MESSAGE',
+      title: 'Nouveau message',
+      body: `${await this.companyName(companyId)} vous a envoyé un message.`,
+      link: `/messages/${conversationId}`,
     });
     return message;
   }

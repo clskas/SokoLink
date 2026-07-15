@@ -16,7 +16,12 @@ import { CompanyRolesGuard } from '../auth/company-roles.guard';
 import { RequireCompanyRoles } from '../auth/company-roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RfqsService } from './rfqs.service';
-import { CreateRfqDto, RespondRfqDto, UpdateRfqDto } from './dto/rfq.dto';
+import {
+  CreateRfqDto,
+  RespondRfqDto,
+  SetDealStatusDto,
+  UpdateRfqDto,
+} from './dto/rfq.dto';
 
 @Controller('rfqs')
 @UseGuards(JwtAuthGuard, ActiveCompanyGuard)
@@ -100,5 +105,17 @@ export class RfqsController {
   ) {
     if (!user.companyId) throw new BadRequestException('Entreprise requise');
     return this.rfqs.close(user.companyId, id);
+  }
+
+  @UseGuards(CompanyRolesGuard)
+  @RequireCompanyRoles(CompanyRole.BUYER)
+  @Patch(':id/deal-status')
+  dealStatus(
+    @CurrentUser() user: { companyId: string | null },
+    @Param('id') id: string,
+    @Body() dto: SetDealStatusDto,
+  ) {
+    if (!user.companyId) throw new BadRequestException('Entreprise requise');
+    return this.rfqs.setDealStatus(user.companyId, id, dto.dealStatus);
   }
 }

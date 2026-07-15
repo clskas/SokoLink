@@ -31,6 +31,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from '../billing/billing.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 class ReviewDocDto {
   @IsEnum(DocumentStatus)
@@ -119,6 +120,7 @@ export class AdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly billing: BillingService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get('stats')
@@ -171,11 +173,43 @@ export class AdminController {
   }
 
   @Post('companies/:id/subscription')
-  subscription(
+  async subscription(
     @Param('id') id: string,
     @Body() dto: UpdateSubscriptionDto,
   ) {
-    return this.billing.updateSubscription(id, dto);
+    const result = await this.billing.updateSubscription(id, dto);
+    if (dto.downgrade) {
+      await this.notifications.notify(id, {
+        type: 'SUBSCRIPTION',
+        title: 'Plan rétrogradé',
+        body: 'Votre entreprise est repassée au plan Free.',
+        link: '/profile',
+      });
+    } else if (dto.extendMonths && dto.extendMonths > 0) {
+      await this.notifications.notify(id, {
+        type: 'SUBSCRIPTION',
+        title: 'Abonnement PRO prolongé',
+        body: `Votre plan PRO a été prolongé de ${dto.extendMonths} mois.`,
+        link: '/profile',
+      });
+    }
+    if (dto.verifyMonths && dto.verifyMonths > 0) {
+      await this.notifications.notify(id, {
+        type: 'SUBSCRIPTION',
+        title: 'Badge Vérifié accordé',
+        body: 'Votre entreprise affiche désormais le badge Vérifié.',
+        link: '/profile',
+      });
+    }
+    if (typeof dto.leadCredits === 'number' && dto.leadCredits > 0) {
+      await this.notifications.notify(id, {
+        type: 'SUBSCRIPTION',
+        title: 'Crédits ajoutés',
+        body: `${dto.leadCredits} crédit(s) de mise en relation ont été ajoutés.`,
+        link: '/profile',
+      });
+    }
+    return result;
   }
 
   @Get('companies')
@@ -191,11 +225,24 @@ export class AdminController {
   }
 
   @Patch('companies/:id/suspend')
-  suspend(@Param('id') id: string, @Body() body: { suspended?: boolean }) {
-    return this.prisma.company.update({
+  async suspend(
+    @Param('id') id: string,
+    @Body() body: { suspended?: boolean },
+  ) {
+    const suspended = body.suspended ?? true;
+    const company = await this.prisma.company.update({
       where: { id },
-      data: { isSuspended: body.suspended ?? true },
+      data: { isSuspended: suspended },
     });
+    await this.notifications.notify(id, {
+      type: 'SYSTEM',
+      title: suspended ? 'Compte suspendu' : 'Compte réactivé',
+      body: suspended
+        ? 'Votre entreprise a été suspendue. Contactez le support pour plus d’informations.'
+        : 'Votre entreprise a été réactivée. Bienvenue à nouveau !',
+      link: '/profile',
+    });
+    return company;
   }
 
   @Patch('companies/:id/roles')
@@ -216,8 +263,8 @@ export class AdminController {
   }
 
   @Patch('documents/:id')
-  review(@Param('id') id: string, @Body() dto: ReviewDocDto) {
-    return this.prisma.document.update({
+  async review(@Param('id') id: string, @Body() dto: ReviewDocDto) {
+    const doc = await this.prisma.document.update({
       where: { id },
       data: {
         status: dto.status,
@@ -225,6 +272,16 @@ export class AdminController {
           dto.status === 'REJECTED' ? dto.rejectReason ?? 'Rejeté' : null,
       },
     });
+    const accepted = dto.status === 'ACCEPTED';
+    await this.notifications.notify(doc.companyId, {
+      type: 'DOCUMENT',
+      title: accepted ? 'Document validé' : 'Document rejeté',
+      body: accepted
+        ? `Votre document ${doc.type} a été validé.`
+        : `Votre document ${doc.type} a été rejeté : ${doc.rejectReason ?? 'motif non précisé'}.`,
+      link: '/profile',
+    });
+    return doc;
   }
 
   @Get('pro-requests')
@@ -253,6 +310,12 @@ export class AdminController {
         },
       }),
     ]);
+    await this.notifications.notify(req.companyId, {
+      type: 'SUBSCRIPTION',
+      title: 'Plan PRO activé',
+      body: 'Votre passage au plan PRO a été validé. Profitez des fonctions premium !',
+      link: '/profile',
+    });
     return { ok: true };
   }
 }

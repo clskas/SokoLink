@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sokolink/features/auth/application/auth_controller.dart';
 import 'package:sokolink/features/auth/data/auth_models.dart';
+import 'package:sokolink/features/notifications/presentation/notifications_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,6 +12,10 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
     final roles = user?.roleLabels ?? const <String>[];
+    final unread = ref.watch(unreadNotificationsProvider).maybeWhen(
+          data: (c) => c,
+          orElse: () => 0,
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -26,6 +31,15 @@ class HomeScreen extends ConsumerWidget {
                     Theme.of(context).colorScheme.primaryContainer,
               ),
             ),
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => context.push('/notifications'),
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 99 ? '99+' : '$unread'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+          ),
           IconButton(
             tooltip: 'Déconnexion',
             onPressed: () async {

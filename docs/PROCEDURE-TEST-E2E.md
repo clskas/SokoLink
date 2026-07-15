@@ -221,6 +221,27 @@ complet du projet :
 | Documents   | Lister les documents avec leur **statut**, en **ajouter** et en **supprimer**.                              |
 | Admin web   | Une entreprise suspendue peut être **réactivée** ; un badge « Vérifié » peut être **retiré**.               |
 
+---
+
+## 4ter. Notifications & changement de statut (nouveau)
+
+Tester sur **deux appareils** : un **acheteur** (ex. `+243810000004`) et un
+**fournisseur** (ex. `+243810000002`).
+
+| Étape | Action | Résultat attendu |
+| ----- | ------ | ---------------- |
+| 1 | Fournisseur **répond** à une RFQ de l'acheteur | L'acheteur voit un **badge rouge** sur la cloche 🔔 de l'accueil (≤ 20 s de polling) |
+| 2 | Acheteur ouvre la **cloche** | Une notification « Nouvelle réponse reçue » avec le nom du fournisseur |
+| 3 | Acheteur **tape** la notification | Ouvre directement la fiche RFQ ; la notification passe en **lue** |
+| 4 | Acheteur ouvre la RFQ → **Statut de l'affaire** | Choix : *En discussion / Affaire conclue / Affaire perdue* |
+| 5 | Acheteur choisit **Affaire conclue** | La RFQ passe **Clôturée** + puce « Affaire conclue » ; le fournisseur reçoit une notif « Statut d'une demande mis à jour » |
+| 6 | Envoyer un **message** à une autre entreprise | Le destinataire reçoit une notif « Nouveau message » qui ouvre la conversation |
+| 7 | Admin **valide/rejette un document**, **confirme un paiement** ou **active le PRO** | L'entreprise concernée reçoit la notif correspondante (Document, Paiement, Abonnement) |
+| 8 | Cloche → **« Tout marquer comme lu »** (icône ✓✓) | Le badge disparaît, compteur remis à zéro |
+
+> Les notifications sont **par entreprise** et remontées par *polling* (20 s) —
+> pas de push serveur en environnement local.
+
 > ℹ️ L'adresse `10.0.92.37` est l'IP Wi-Fi **de cette machine**. Si l'IP change,
 > reconstruire l'APK avec `--dart-define=API_BASE_URL=http://<nouvelle-IP>:3190/v1`.
 

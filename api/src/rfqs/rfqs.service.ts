@@ -1,12 +1,26 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, RfqStatus, SubscriptionPlan } from '@prisma/client';
+import {
+  DealStatus,
+  Prisma,
+  RfqStatus,
+  SubscriptionPlan,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { FreePlanLimits, ProPlanLimits } from '../common/plan-limits';
 import { CreateRfqDto, RespondRfqDto, UpdateRfqDto } from './dto/rfq.dto';
+
+const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
+  NONE: 'Aucun',
+  IN_DISCUSSION: 'En discussion',
+  CLOSED_WON: 'Affaire conclue',
+  CLOSED_LOST: 'Affaire perdue',
+};
 
 /** Ajoute les alias attendus par l'app mobile (description, message). */
 function mapRfq<
@@ -24,7 +38,10 @@ function mapRfq<
 
 @Injectable()
 export class RfqsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private readonly rfqInclude = {
     category: true,
@@ -126,7 +143,7 @@ export class RfqsService {
       await this.assertResponseQuota(companyId);
     }
 
-    return this.prisma.rfqResponse.upsert({
+    const result = await this.prisma.rfqResponse.upsert({
       where: { rfqId_companyId: { rfqId, companyId } },
       create: {
         rfqId,
@@ -141,6 +158,62 @@ export class RfqsService {
         comment: dto.comment ?? dto.message,
       },
     });
+
+    const responder = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+    await this.notifications.notify(rfq.issuerCompanyId, {
+      type: 'RFQ_RESPONSE',
+      title: existing ? 'Réponse mise à jour' : 'Nouvelle réponse reçue',
+      body: `${responder?.name ?? 'Une entreprise'} a répondu à « ${rfq.title} ».`,
+      link: `/rfqs/${rfqId}`,
+    });
+
+    return result;
+  }
+
+  /** Mise à jour du statut commercial (deal) d'une RFQ par son émetteur. */
+  async setDealStatus(
+    companyId: string,
+    rfqId: string,
+    dealStatus: DealStatus,
+  ) {
+    const rfq = await this.prisma.rfq.findUnique({
+      where: { id: rfqId },
+      include: { responses: { select: { companyId: true } } },
+    });
+    if (!rfq) throw new NotFoundException();
+    if (rfq.issuerCompanyId !== companyId) throw new ForbiddenException();
+    if (!Object.values(DealStatus).includes(dealStatus)) {
+      throw new BadRequestException('Statut commercial invalide');
+    }
+
+    const closes =
+      dealStatus === DealStatus.CLOSED_WON ||
+      dealStatus === DealStatus.CLOSED_LOST;
+
+    const updated = await this.prisma.rfq.update({
+      where: { id: rfqId },
+      data: {
+        dealStatus,
+        ...(closes ? { status: RfqStatus.CLOSED, isOpen: false } : {}),
+      },
+      include: this.rfqInclude,
+    });
+
+    // On informe les fournisseurs ayant répondu du nouveau statut.
+    const label = DEAL_STATUS_LABELS[dealStatus];
+    for (const r of rfq.responses) {
+      await this.notifications.notify(r.companyId, {
+        type: 'RFQ_STATUS',
+        title: 'Statut d’une demande mis à jour',
+        body: `« ${rfq.title} » : ${label}.`,
+        link: `/rfqs/${rfqId}`,
+      });
+    }
+
+    return mapRfq(updated);
   }
 
   /** Retire la réponse de l'entreprise à une RFQ. */

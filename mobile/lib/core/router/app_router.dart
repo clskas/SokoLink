@@ -10,6 +10,7 @@ import 'package:sokolink/features/directory/presentation/detail_screens.dart';
 import 'package:sokolink/features/messages/presentation/message_screens.dart';
 import 'package:sokolink/features/profile/presentation/profile_screen.dart';
 import 'package:sokolink/features/rfqs/presentation/rfq_screens.dart';
+import 'package:sokolink/features/notifications/presentation/notifications_screen.dart';
 import 'package:sokolink/features/legal/presentation/legal_document_screen.dart';
 import 'package:sokolink/core/offline/offline_cache.dart';
 import 'package:sokolink/core/offline/offline_sync.dart';
@@ -123,6 +124,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ProductDetailScreen(productId: state.pathParameters['id']!),
       ),
       GoRoute(path: '/catalog', builder: (_, __) => const CatalogScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotificationsScreen(),
+      ),
       GoRoute(
         path: '/rfqs/new',
         builder: (_, state) => RfqFormScreen(

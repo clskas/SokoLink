@@ -6,7 +6,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { ProductType } from '@prisma/client';
+import { DealStatus, ProductType } from '@prisma/client';
 
 export class CreateRfqDto {
   @IsString()
@@ -80,6 +80,11 @@ export class RespondRfqDto {
   @IsOptional()
   @IsString()
   message?: string;
+}
+
+export class SetDealStatusDto {
+  @IsEnum(DealStatus)
+  dealStatus: DealStatus;
 }
 
 export class UpdateRfqDto {

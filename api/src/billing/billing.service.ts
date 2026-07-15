@@ -11,7 +11,15 @@ import {
   SubscriptionPlan,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Pricing, PricingPlans } from '../common/pricing';
+
+const PURPOSE_LABELS: Record<PaymentPurpose, string> = {
+  SUBSCRIPTION: 'abonnement PRO',
+  BOOST: 'mise en avant produit',
+  VERIFICATION: 'badge Vérifié',
+  LEAD: 'crédits de mise en relation',
+};
 
 export interface CreatePaymentInput {
   purpose: PaymentPurpose;
@@ -47,7 +55,10 @@ function toNumber(amount: Prisma.Decimal | number | null | undefined): number {
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   plans() {
     return { currency: Pricing.currency, plans: PricingPlans };
@@ -125,7 +136,7 @@ export class BillingService {
     if (!payment) throw new NotFoundException('Paiement introuvable');
     if (payment.status === PaymentStatus.CONFIRMED) return payment;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await this.applyEffect(tx, payment);
       return tx.payment.update({
         where: { id },
@@ -136,6 +147,13 @@ export class BillingService {
         },
       });
     });
+    await this.notifications.notify(payment.companyId, {
+      type: 'PAYMENT',
+      title: 'Paiement confirmé',
+      body: `Votre paiement (${PURPOSE_LABELS[payment.purpose]}) a été confirmé.`,
+      link: '/profile',
+    });
+    return result;
   }
 
   async rejectPayment(id: string, adminUserId: string) {
@@ -161,6 +179,12 @@ export class BillingService {
         });
       }
     }
+    await this.notifications.notify(payment.companyId, {
+      type: 'PAYMENT',
+      title: 'Paiement rejeté',
+      body: `Votre paiement (${PURPOSE_LABELS[payment.purpose]}) n’a pas pu être validé. Contactez le support.`,
+      link: '/profile',
+    });
     return updated;
   }
 

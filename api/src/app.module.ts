@@ -13,6 +13,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
 import { LegalModule } from './legal/legal.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { LegalModule } from './legal/legal.module';
     BillingModule,
     AdminModule,
     LegalModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
