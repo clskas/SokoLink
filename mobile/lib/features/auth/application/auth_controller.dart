@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sokolink/features/auth/data/auth_models.dart';
 import 'package:sokolink/features/auth/data/auth_repository.dart';
@@ -110,9 +111,31 @@ class AuthController extends StateNotifier<AuthState> {
       );
       return true;
     } catch (e) {
-      state = state.copyWith(error: 'Impossible d’envoyer l’OTP. Réessayez.');
+      state = state.copyWith(error: _otpError(e));
       return false;
     }
+  }
+
+  String _otpError(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 429) {
+        return 'Trop de demandes. Patientez une minute avant de réessayer.';
+      }
+      if (code == 400 || code == 422) {
+        return 'Numéro invalide. Format attendu : +243XXXXXXXXX.';
+      }
+      if (code != null && code >= 500) {
+        return 'Service momentanément indisponible. Réessayez dans un instant.';
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        return 'Serveur injoignable. Vérifiez votre connexion et réessayez.';
+      }
+    }
+    return 'Impossible d’envoyer l’OTP. Réessayez.';
   }
 
   Future<String> verifyOtp({

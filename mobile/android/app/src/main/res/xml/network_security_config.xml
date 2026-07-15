@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Autorise le HTTP en clair uniquement pour les hôtes de développement
+  (adb reverse -> 127.0.0.1, émulateur -> 10.0.2.2, LAN local).
+  La production doit utiliser HTTPS : le cleartext reste bloqué par défaut ailleurs.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">10.0.92.37</domain>
+        <domain includeSubdomains="true">192.168.0.0</domain>
+    </domain-config>
+</network-security-config>

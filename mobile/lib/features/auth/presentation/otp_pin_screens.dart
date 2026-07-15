@@ -115,6 +115,15 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    final devCode = ref.read(authControllerProvider).devCode;
+    if (devCode != null && devCode.isNotEmpty) {
+      _code.text = devCode;
+    }
+  }
+
+  @override
   void dispose() {
     _code.dispose();
     super.dispose();
@@ -146,10 +155,45 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
         children: [
           Text('Code envoyé au ${auth.phone ?? ''}'),
           if (auth.devCode != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Mode démo — code : ${auth.devCode}',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Mode démo — aucun SMS envoyé',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    auth.devCode!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Code déjà pré-rempli ci-dessous — appuyez sur Valider',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -194,6 +238,10 @@ class _OtpProfileScreenState extends ConsumerState<OtpProfileScreen> {
   void initState() {
     super.initState();
     _loadProvinces();
+    final devCode = ref.read(authControllerProvider).devCode;
+    if (devCode != null && devCode.isNotEmpty) {
+      _code.text = devCode;
+    }
   }
 
   Future<void> _loadProvinces() async {
@@ -257,6 +305,16 @@ class _OtpProfileScreenState extends ConsumerState<OtpProfileScreen> {
           const Text(
             'Premier accès : renseignez votre entreprise et le même code OTP.',
           ),
+          if (auth.devCode != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Mode démo — code : ${auth.devCode} (déjà pré-rempli)',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           TextField(
             controller: _code,

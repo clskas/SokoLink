@@ -15,12 +15,14 @@ import 'package:sokolink/core/offline/offline_cache.dart';
 import 'package:sokolink/core/offline/offline_sync.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authControllerProvider);
-
+  // Ne PAS `watch` l'auth ici : cela recréerait tout le GoRouter à chaque
+  // changement d'état (perte de navigation, reset des écrans). On lit l'état
+  // à la volée dans `redirect`, ré-exécuté via `refreshListenable`.
   return GoRouter(
     initialLocation: '/login',
     refreshListenable: _AuthListenable(ref),
     redirect: (context, state) {
+      final auth = ref.read(authControllerProvider);
       final status = auth.status;
       final loc = state.matchedLocation;
       final legal = loc.startsWith('/legal');

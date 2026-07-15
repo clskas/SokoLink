@@ -34,7 +34,7 @@
       APP_NAME: SokoLink
       OTP_DEV_EXPOSE: "true"
     ports:
-      - "3100:3100"
+      - "3190:3100"
     volumes:
       - sokolink_uploads:/app/uploads
     healthcheck:
